@@ -1,0 +1,8 @@
+{
+  "name": "birmingham-corps-live",
+  "version": "1.0.0",
+  "description": "Birmingham Corps Live Dashboard",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}

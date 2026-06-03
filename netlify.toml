@@ -1,0 +1,51 @@
+[build]
+  functions = "netlify/functions"
+  publish = "."
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[functions]
+  node_bundler = "esbuild"
+
+# ── Feature 3: Scheduled cache refresh (runs every 30 min) ──────────────────
+[functions."cache-refresh"]
+  schedule = "*/30 * * * *"
+
+# ── Feature 9: Deploy Previews — staging environment ────────────────────────
+[context.production]
+  environment = { NODE_ENV = "production" }
+
+[context.deploy-preview]
+  environment = { NODE_ENV = "preview" }
+
+[context.branch-deploy]
+  environment = { NODE_ENV = "staging" }
+
+# ── Feature 1: Custom domain redirect (www → apex) ──────────────────────────
+[[redirects]]
+  from   = "https://www.birminghamcorps.org/*"
+  to     = "https://dashboard.birminghamcorps.org/:splat"
+  status = 301
+  force  = true
+
+# ── Security headers (all pages) ────────────────────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options            = "SAMEORIGIN"
+    X-Content-Type-Options     = "nosniff"
+    Strict-Transport-Security  = "max-age=63072000; includeSubDomains; preload"
+    X-XSS-Protection           = "1; mode=block"
+    Referrer-Policy            = "strict-origin-when-cross-origin"
+
+# Cache static assets aggressively
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

@@ -1,0 +1,52 @@
+name: Weekly Monday.com Data Backup
+
+on:
+  schedule:
+    # Every Sunday at 6:00 AM UTC (midnight CT)
+    - cron: '0 6 * * 0'
+  # Allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  backup:
+    name: Backup Monday.com Data to GitHub
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Run backup script
+        env:
+          MONDAY_API_KEY: ${{ secrets.MONDAY_API_KEY }}
+        run: node scripts/backup.js
+
+      - name: Commit and push backup files
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          # Only commit if there are actual changes
+          if git diff --staged --quiet; then
+            echo "No changes to commit — data unchanged since last backup."
+          else
+            PARTICIPANT_COUNT=$(node -e "const f=require('./data/latest/participants.json');console.log(f.length)" 2>/dev/null || echo "?")
+            PARTNER_COUNT=$(node -e "const f=require('./data/latest/partners.json');console.log(f.length)" 2>/dev/null || echo "?")
+            git commit -m "Weekly backup $(date +%Y-%m-%d): ${PARTICIPANT_COUNT} participants, ${PARTNER_COUNT} partners"
+            git push
+          fi
+
+      - name: Send summary to workflow output
+        run: |
+          echo "### Backup Complete ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Board | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Participants | $(node -e "console.log(require('./data/latest/participants.json').length)" 2>/dev/null || echo '—') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Partners | $(node -e "console.log(require('./data/latest/partners.json').length)" 2>/dev/null || echo '—') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Marketing | $(node -e "console.log(require('./data/latest/marketing.json').length)" 2>/dev/null || echo '—') |" >> $GITHUB_STEP_SUMMARY
