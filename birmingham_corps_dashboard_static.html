@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birmingham Corps Data Metrics Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+    <style>
+        :root {
+            color-scheme: light;
+            --primary: #2c3e50;
+            --accent: #e74c3c;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --info: #3498db;
+            --light: #ecf0f1;
+            --border: #bdc3c7;
+            --text: #34495e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            color: var(--text);
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary) 0%, #34495e 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar h1 {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .sync-indicator {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .sync-indicator.synced {
+            background: rgba(39, 174, 96, 0.3);
+            color: #27ae60;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--light);
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 24px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-card.success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        .stat-card.warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .stat-card.info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .heatmap-container {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .zipcode-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+            gap: 8px;
+        }
+
+        .zipcode-cell {
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .zipcode-cell:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .zipcode-cell.high {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .zipcode-cell.medium {
+            background: #f39c12;
+            color: white;
+        }
+
+        .zipcode-cell.low {
+            background: #27ae60;
+            color: white;
+        }
+
+        .zipcode-cell.empty {
+            background: #ecf0f1;
+            color: #95a5a6;
+        }
+
+        .breakdown-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .breakdown-card {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--accent);
+        }
+
+        .breakdown-card h4 {
+            color: var(--primary);
+            margin-bottom: 12px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .breakdown-list {
+            list-style: none;
+        }
+
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--light);
+            font-size: 13px;
+        }
+
+        .breakdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .breakdown-item span:first-child {
+            color: var(--text);
+        }
+
+        .breakdown-item span:last-child {
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th {
+            background: var(--primary);
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            border: none;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--light);
+            font-size: 13px;
+        }
+
+        tr:hover {
+            background: #f9f9f9;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .info-badge {
+            display: inline-block;
+            background: var(--info);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin: 0 4px;
+        }
+
+        .growth-positive {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .growth-negative {
+            color: var(--warning);
+            font-weight: 600;
+        }
+
+        .snapshot-banner {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 10px 20px;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .breakdown-grid {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            td, th {
+                padding: 8px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .navbar {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .tab-btn {
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="snapshot-banner">
+        📸 Static snapshot &mdash; data captured May 29, 2026. To update, re-export from Monday.com.
+    </div>
+    <div class="navbar">
+        <h1>📊 Birmingham Corps Data Metrics</h1>
+        <div class="sync-indicator synced" id="syncIndicator">✓ Snapshot Loaded</div>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('participants', this)">👥 Participants</button>
+            <button class="tab-btn" onclick="switchTab('partners', this)">🤝 Partners &amp; Donors</button>
+            <button class="tab-btn" onclick="switchTab('marketing', this)">📢 Marketing Performance</button>
+            <button class="tab-btn" onclick="switchTab('management', this)">📈 Management Overview</button>
+        </div>
+
+        <!-- PARTICIPANTS TAB -->
+        <div id="participants" class="tab-content active">
+            <div id="participantsStatsContainer" class="stats-grid"></div>
+
+            <div class="section">
+                <div class="section-title">Participant Distribution by Zipcode (Birmingham, AL)</div>
+                <div class="heatmap-container">
+                    <div id="zipcodeHeatmap" class="zipcode-grid"></div>
+                    <p style="font-size: 12px; color: #7f8c8d; margin-top: 15px;">🔴 High concentration | 🟠 Medium | 🟢 Low | ⚪ No data</p>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Participant Status Breakdown</div>
+                <div class="breakdown-grid">
+                    <div id="statusBreakdown"></div>
+                    <div id="programBreakdown"></div>
+                    <div id="departmentBreakdown"></div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="participantStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- PARTNERS TAB -->
+        <div id="partners" class="tab-content">
+            <div id="partnersStatsContainer" class="stats-grid"></div>
+
+            <div class="section">
+                <div class="section-title">Partner Donations &amp; Contributions</div>
+                <table id="donationTable">
+                    <thead>
+                        <tr>
+                            <th>Partner Name</th>
+                            <th>Contact Type</th>
+                            <th>Contribution Amount</th>
+                            <th>Jobs/Slots Available</th>
+                            <th>Relationship Stage</th>
+                        </tr>
+                    </thead>
+                    <tbody id="donationTableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Program Assignments &amp; Placements</div>
+                <table id="programTable">
+                    <thead>
+                        <tr>
+                            <th>Partner Name</th>
+                            <th>Department/Program</th>
+                            <th>Partnership Duration</th>
+                            <th>Total Slots</th>
+                            <th>Primary Contact</th>
+                        </tr>
+                    </thead>
+                    <tbody id="programTableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Partner Type Distribution</div>
+                <div class="breakdown-grid">
+                    <div id="partnerTypeBreakdown"></div>
+                    <div id="partnerStageBreakdown"></div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="partnerTypeChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- MARKETING TAB -->
+        <div id="marketing" class="tab-content">
+            <div id="marketingStatsContainer" class="stats-grid"></div>
+
+            <div class="section">
+                <div class="section-title">Marketing Campaigns Performance</div>
+                <table id="campaignTable">
+                    <thead>
+                        <tr>
+                            <th>Campaign Name</th>
+                            <th>Channel</th>
+                            <th>Month</th>
+                            <th>CTR (%)</th>
+                            <th>Newsletter Opens</th>
+                            <th>Goal</th>
+                            <th>Actual</th>
+                            <th>Growth %</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="campaignTableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Channel Performance &amp; KPIs</div>
+                <div class="breakdown-grid">
+                    <div id="channelBreakdown"></div>
+                    <div id="priorityBreakdown"></div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="marketingChannelChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="ctrChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- MANAGEMENT OVERVIEW TAB -->
+        <div id="management" class="tab-content">
+            <div class="section">
+                <div class="section-title">Executive Summary - All Data Points</div>
+                <div id="managementOverview" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SNAPSHOT = {
+            participants: [{"id":"11718174429","name":"Sharonda Louis","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Career Navigator Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718162487","name":"Donnisha Taylor","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718158961","name":"Charlisa Rodgers","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718166403","name":"Brittni Jones","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718176245","name":"Chiquita Norman Dixon","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718162663","name":"Amarion Sumlin","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718159079","name":"Ayana N. Davis","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718166627","name":"Khayla Simone Boykin","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709070248","name":"D'Bria Stallworth","subtasks_mm291jx8":"","dropdown_mm28v4zz":"AmeriCorps -1st Cycle","location_mm28aebp":"","color_mm28tqgd":"Active","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Job Placement","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709054845","name":"Maya Smith","subtasks_mm291jx8":"","dropdown_mm28v4zz":"AmeriCorps -1st Cycle","location_mm28aebp":"","color_mm28tqgd":"Active","color_mm2ybdsg":"1:1 Coaching","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Job Placement","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709071787","name":"Valyncia Johnson","subtasks_mm291jx8":"","dropdown_mm28v4zz":"AmeriCorps -1st Cycle","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Americorps","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Job Placement","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709070607","name":"Vivian Beatrice Lovelace","subtasks_mm291jx8":"","dropdown_mm28v4zz":"AmeriCorps -1st Cycle","location_mm28aebp":"","color_mm28tqgd":"Active","color_mm2ybdsg":"1:1 Coaching","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Job Placement","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709066625","name":"Jessica Hollis","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"1:1 Coaching","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Job Placement","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709066515","name":"Sarina Hall","subtasks_mm291jx8":"","dropdown_mm28v4zz":"AmeriCorps -1st Cycle","location_mm28aebp":"","color_mm28tqgd":"Active","color_mm2ybdsg":"1:1 Coaching","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Job Placement","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709070686","name":"Morgan Terry","subtasks_mm291jx8":"","dropdown_mm28v4zz":"AmeriCorps -1st Cycle","location_mm28aebp":"","color_mm28tqgd":"Active","color_mm2ybdsg":"1:1 Coaching","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Job Placement","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709066787","name":"Preston Isaiah Stanley","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"1:1 Coaching","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Job Placement","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709068777","name":"Torrey Simone Kindall","subtasks_mm291jx8":"","dropdown_mm28v4zz":"AmeriCorps -1st Cycle","location_mm28aebp":"","color_mm28tqgd":"Active","color_mm2ybdsg":"1:1 Coaching","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Job Placement","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709068766","name":"LeTerrica Montgomery","subtasks_mm291jx8":"","dropdown_mm28v4zz":"AmeriCorps -1st Cycle","location_mm28aebp":"","color_mm28tqgd":"Active","color_mm2ybdsg":"Career Navigator","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Job Placement","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709065121","name":"Lauren Perry","subtasks_mm291jx8":"","dropdown_mm28v4zz":"AmeriCorps -1st Cycle","location_mm28aebp":"","color_mm28tqgd":"Active","color_mm2ybdsg":"Americorps","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Job Placement","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709067297","name":"Porsha Edwards","subtasks_mm291jx8":"","dropdown_mm28v4zz":"AmeriCorps -1st Cycle","location_mm28aebp":"","color_mm28tqgd":"Active","color_mm2ybdsg":"Americorps","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Job Placement","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709066952","name":"Zakiyyah Paul","subtasks_mm291jx8":"","dropdown_mm28v4zz":"AmeriCorps -1st Cycle","location_mm28aebp":"","color_mm28tqgd":"Active","color_mm2ybdsg":"1:1 Coaching","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Job Placement","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709066920","name":"Ja'Nise Gentry","subtasks_mm291jx8":"","dropdown_mm28v4zz":"AmeriCorps -1st Cycle","location_mm28aebp":"","color_mm28tqgd":"Active","color_mm2ybdsg":"Career Navigator","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Job Placement","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709067177","name":"Wenica Woods","subtasks_mm291jx8":"","dropdown_mm28v4zz":"AmeriCorps -1st Cycle","location_mm28aebp":"","color_mm28tqgd":"Active","color_mm2ybdsg":"1:1 Coaching","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Financial Stability","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709057159","name":"Shameca Witherspoon","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709069090","name":"Brittney Cadena","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709075822","name":"Nicolas Recalde","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709092800","name":"Jessica Whitehurst","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709077134","name":"Jason McTune","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709083526","name":"LaBrina Riles","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709083527","name":"Margaret Boothe","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709097866","name":"Tawanna Taylor","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709086933","name":"Ulises Valencia Riveria","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709106652","name":"Latoya Pennington","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709106130","name":"Ursula Patrice Avery","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709101283","name":"Tamesha Johnson","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709094681","name":"Jondell Stephens","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709114092","name":"Brandy Alexander","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709106141","name":"Morgan Taylor Medauri Smith","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Active","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709099257","name":"Michelle Ladner","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709095197","name":"Neena Speer","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709116933","name":"Keivon Johnson","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709116763","name":"Dantavious Lee","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Alumni","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709104899","name":"Tynisha K. Hall","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709117085","name":"Serenity Johnson","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709099274","name":"Alandrea Harris","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709094706","name":"Aneisha Williams","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709117279","name":"Cerissa A. Brown","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709104882","name":"Whitney Yelling","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709101404","name":"Tracey Kennedy","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709105397","name":"Rolanda Mcintyre","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709108698","name":"Erika Celeste Forest","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709096680","name":"Tracey Herndon Howard","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709101841","name":"Latifah Kelley","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709113057","name":"Charleeta Nicole Latham","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709095687","name":"Jazmine Dozier","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709228832","name":"Rachel Donnell Nixon","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709223678","name":"Taneisha Caffey","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709223767","name":"Nikeria House","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709220038","name":"L. Qiana Burpo","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709214395","name":"Keith Oscar Williams","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709206234","name":"Zavaughn Ameer Bolden","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709206237","name":"Kennedie Shepherd","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709229633","name":"Destiny Shepherd","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709238452","name":"Tameesha Brock","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709229313","name":"Chantiyea Ross","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709212028","name":"LaTrese Parks","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709216454","name":"J'Marcus Carey","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709238747","name":"Cyresia Prewitt","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709213875","name":"Akira Williams","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709215209","name":"Charnita Bracy","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709213959","name":"Ashley Rene Cunningham","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709216801","name":"Jordan Jamal Dent","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709236492","name":"Ashley Monique Lankford","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11709234730","name":"Byuanca Godbolt","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718159785","name":"Breanna Shanta Watson","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718164447","name":"Adam Smith","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718164197","name":"Robyn Patrice Bennett","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718145008","name":"DeAngela Berryhill","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718159914","name":"Dyamond Colleen Crosby","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718145109","name":"Tywaun Marquise Mumford","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718170413","name":"Kenyon Damon Allen","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718145166","name":"Alexis Brown","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718165495","name":"Victoria Reed","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718164410","name":"Jamesha Cross","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718161600","name":"Nefertiti Tyann Williams","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718167381","name":"Steven A. Curry","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718160160","name":"Barbara Moore","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718158072","name":"Jayla Jamiese Brown","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718161625","name":"Alycia Tutt","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718173787","name":"Jessica Anderson","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718164526","name":"Montinque Webb","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718164653","name":"Tiffany Jones","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718164681","name":"Brandon Dix","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""},{"id":"11718161772","name":"Lisa Michelle Sumlin","subtasks_mm291jx8":"","dropdown_mm28v4zz":"Current Participant","location_mm28aebp":"","color_mm28tqgd":"Inactive","color_mm2ybdsg":"Talent Bridge","rating_mm2tqwp1":"","date_mm28yr89":"","dropdown_mm28exwm":"Workforce and Employment Pathways","numeric_mm28tx7a":"","numeric_mm2yc563":"","text_mm2tbgbc":"","multiple_person_mm28x7h6":"","long_text_mm2855d2":"","date_mm2815pm":"","file_mm28h6qg":""}],
+            partners: [{"id":"11718192592","name":"Women's Foundation of Alabama \u2013 Good Jobs Challenge","dropdown_mm28jwg4":"Funder","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"Partnerships","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"50000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11718192650","name":"Women's Foundation of Alabama \u2013 Good Jobs Mini Grant","dropdown_mm28jwg4":"Funder","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"Partnerships","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"15000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11718167068","name":"Coca-Cola UNITED","dropdown_mm28jwg4":"Funder, Facilitor","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"Partnerships","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"15000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11718167172","name":"Alabama Power Foundation \u2013 2025 Cycle 1","dropdown_mm28jwg4":"Funder","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"Workforce and Employment Pathways, Partnerships","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"15000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11718167175","name":"AmeriCorps Alabama \u2013 State and National Funding 2025-2026","dropdown_mm28jwg4":"Gov Agency","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"Partnerships","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"500000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11718179532","name":"The Caring Foundation \u2013 Blue Cross Blue Shield 2025","dropdown_mm28jwg4":"Funder","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"Partnerships","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"20000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11718179646","name":"Community Foundation of Greater Birmingham \u2013 LGBTQ+ Fund","dropdown_mm28jwg4":"Funder","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"Partnerships","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"6000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11718163185","name":"Steven and Marian Phillips Foundation","dropdown_mm28jwg4":"Funder","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"Partnerships","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"25000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11718175370","name":"Goodrich Foundation \u2013 2025 Community Support Grant","dropdown_mm28jwg4":"Funder","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"Partnerships","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"20000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11718175317","name":"Daniel Foundation of Alabama \u2013 2025 Community Needs Grant","dropdown_mm28jwg4":"Funder","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"Partnerships","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"20000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11718179899","name":"EBSCO \u2013 2025 Cycle Two Grant","dropdown_mm28jwg4":"Funder","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"Partnerships","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"20000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11718185910","name":"City of Birmingham","dropdown_mm28jwg4":"Gov Agency","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"Partnerships","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"75000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11718186071","name":"Walker Area Community Foundation \u2013 Fall 2025 Grant","dropdown_mm28jwg4":"Funder","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"Partnerships","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"50000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11718193443","name":"Community Foundation of Greater Birmingham \u2013 Fall 2025 Competitive Grant","dropdown_mm28jwg4":"Funder","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"Partnerships","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"50000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11718179926","name":"Jemison Investment Co. \u2013 Multi-Year Grant 2026-2028","dropdown_mm28jwg4":"Funder","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"Partnerships","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"30000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709009051","name":"Alabama Office of Governors Service","dropdown_mm28jwg4":"Gov Agency","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"Partnerships","phone_mm2819ba":"","text_mm2817s2":"Alabama Office of Governors Service","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709028040","name":"Daniel Foundation 2025 Education & Youth Grant","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"12058743523","text_mm2817s2":"Maria Kennedy","email_mm28bxwj":"mkennedy@df-al.com","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709043947","name":"AlTec Foundation","dropdown_mm28jwg4":"Employer","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"Sheri Cook","email_mm28bxwj":"sheri.cook@altec.com","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709042398","name":"McWane Foundation","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"12055783817","text_mm2817s2":"Charlie Hartman","email_mm28bxwj":"charlie.hartman@mcwane.com","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709025558","name":"Protective Life Foundation","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"David Loper","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709044012","name":"Shipt Renewal Grant 2026","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"Brittney Smith","email_mm28bxwj":"brittney.smith@shipt.com","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709044069","name":"PNC Foundation","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"12055833628","text_mm2817s2":"Tyler Hatcher","email_mm28bxwj":"tyler.hatcher@pnc.com","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709042464","name":"Alabama Power 2025 Cycle 2","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"12052571079","text_mm2817s2":"Melissa Black","email_mm28bxwj":"MABLACK@southernco.com","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709028980","name":"2026 Women's Foundation Grant","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"12053264454","text_mm2817s2":"Kaitlee Daw","email_mm28bxwj":"kdaw@wfalabama.org","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709022804","name":"Spire Serves 2025","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"Alex Dixon","email_mm28bxwj":"Alex.Dixon@spireenergy.com","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709036521","name":"Truist Foundation","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709036527","name":"Vulcan Materials Foundation","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"Carol Maxwell","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709039015","name":"Catalyze Birmingham Challenge Round 3","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"250000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709034414","name":"WIOA Funds Alabama","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"Anna Chapelle","email_mm28bxwj":"anna.s.chappelle@commerce.alabama.gov","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709033356","name":"W.K. Kellogg Foundation (WKKF)","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709036724","name":"Innovate Alabama Project Grant","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"Karri Green","email_mm28bxwj":"karri.green@innovatealabama.org","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"750000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709043041","name":"Alabama Civil Justice Foundation (ACJF)","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"Caroline Clark","email_mm28bxwj":"caroline@acjf.org","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"25000","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709036773","name":"Alabama Office of Governors Service","dropdown_mm28jwg4":"","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709029551","name":"Girls Inc.","dropdown_mm28jwg4":"","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709031073","name":"Legacy Works","dropdown_mm28jwg4":"","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709049781","name":"Neighborhood Housing Services of Birmingham","dropdown_mm28jwg4":"","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709015141","name":"i3 Academy","dropdown_mm28jwg4":"","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"i3 Academy","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709011545","name":"Women's Foundation of Alabama","dropdown_mm28jwg4":"","color_mm28m1nh":"Current Engagement","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"Women's Foundation of Alabama","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709009411","name":"College Admissions Made Possible","dropdown_mm28jwg4":"","color_mm28m1nh":"Worked with in Past","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"College Admissions Made Possible","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709009223","name":"Legacy Works","dropdown_mm28jwg4":"","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"Legacy Works","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709009226","name":"Girls Inc.","dropdown_mm28jwg4":"","color_mm28m1nh":"Worked with in Past","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"Girls Inc.","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709009210","name":"Create Birmingham","dropdown_mm28jwg4":"","color_mm28m1nh":"Worked with in Past","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"Create Birmingham","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709009309","name":"Workshops Empowerment Inc.","dropdown_mm28jwg4":"","color_mm28m1nh":"Donated","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"Workshops Empowerment Inc.","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709028015","name":"Neighborhood Housing Services of Birmingham","dropdown_mm28jwg4":"","color_mm28m1nh":"Worked with in Past","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"Neighborhood Housing Services of Birmingham","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""},{"id":"11709028609","name":"Small Magic","dropdown_mm28jwg4":"","color_mm28m1nh":"Worked with in Past","dropdown_mm28c4sa":"","phone_mm2819ba":"","text_mm2817s2":"Small Magic","email_mm28bxwj":"","location_mm31st9t":"","link_mm314xpq":"","multiple_person_mm28c6fz":"","date_mm31b6ea":"","date_mm319anh":"","date_mm31sn68":"","date_mm28q7e6":"","dropdown_mm28a1cm":"","date_mm28qa1y":"","numeric_mm2886n2":"","numeric_mm28kjd9":"","file_mm31s8c6":"","long_text_mm28s9zy":"","subtasks_mm31j61z":""}],
+            marketing: [{"id":"11405833944","name":"X (Twitter)","numeric_mm31cfpz":"","numeric_mm31zz9j":"","dropdown_mm31wyzn":"","color_mm31c5ej":"","date_mm33s7em":"","numeric_mm33krrk":"","numeric_mm33qg94":"","numeric_mm33k7yd":""},{"id":"11405868306","name":"Instagram","numeric_mm31cfpz":"","numeric_mm31zz9j":"","dropdown_mm31wyzn":"","color_mm31c5ej":"","date_mm33s7em":"","numeric_mm33krrk":"","numeric_mm33qg94":"","numeric_mm33k7yd":""},{"id":"11405838758","name":"Email Newsletter Campaign","numeric_mm31cfpz":"","numeric_mm31zz9j":"","dropdown_mm31wyzn":"","color_mm31c5ej":"","date_mm33s7em":"","numeric_mm33krrk":"","numeric_mm33qg94":"","numeric_mm33k7yd":""},{"id":"11405837182","name":"Facebook","numeric_mm31cfpz":"","numeric_mm31zz9j":"","dropdown_mm31wyzn":"","color_mm31c5ej":"","date_mm33s7em":"","numeric_mm33krrk":"","numeric_mm33qg94":"","numeric_mm33k7yd":""},{"id":"11405874190","name":"LinkedIn","numeric_mm31cfpz":"","numeric_mm31zz9j":"","dropdown_mm31wyzn":"","color_mm31c5ej":"","date_mm33s7em":"","numeric_mm33krrk":"","numeric_mm33qg94":"","numeric_mm33k7yd":""},{"id":"11904578080","name":"Monthly Newsletter","numeric_mm31cfpz":"","numeric_mm31zz9j":"","dropdown_mm31wyzn":"Email","color_mm31c5ej":"Low","date_mm33s7em":"","numeric_mm33krrk":"","numeric_mm33qg94":"","numeric_mm33k7yd":""},{"id":"11904593729","name":"Instagram Outreach - Workforce Program Spotlight","numeric_mm31cfpz":"","numeric_mm31zz9j":"","dropdown_mm31wyzn":"","color_mm31c5ej":"","date_mm33s7em":"","numeric_mm33krrk":"","numeric_mm33qg94":"","numeric_mm33k7yd":""},{"id":"11904578146","name":"Partner Employer Outreach Campaign","numeric_mm31cfpz":"","numeric_mm31zz9j":"","dropdown_mm31wyzn":"","color_mm31c5ej":"Medium","date_mm33s7em":"","numeric_mm33krrk":"","numeric_mm33qg94":"","numeric_mm33k7yd":""},{"id":"11904582380","name":"LinkedIn - AmeriCorps Member Highlight Post","numeric_mm31cfpz":"","numeric_mm31zz9j":"","dropdown_mm31wyzn":"","color_mm31c5ej":"","date_mm33s7em":"","numeric_mm33krrk":"","numeric_mm33qg94":"","numeric_mm33k7yd":""},{"id":"11904578244","name":"Community Event Promotion","numeric_mm31cfpz":"","numeric_mm31zz9j":"","dropdown_mm31wyzn":"","color_mm31c5ej":"Low","date_mm33s7em":"","numeric_mm33krrk":"","numeric_mm33qg94":"","numeric_mm33k7yd":""}]
+        };
+
+        let allData = {
+            participants: [],
+            partners: [],
+            marketing: []
+        };
+
+        let chartInstances = {};
+
+        function initDashboard() {
+            allData.participants = SNAPSHOT.participants;
+            allData.partners = SNAPSHOT.partners;
+            allData.marketing = SNAPSHOT.marketing;
+            updateAllSections();
+        }
+
+        function updateAllSections() {
+            renderParticipantStats();
+            renderParticipantBreakdown();
+            renderPartnerStats();
+            renderPartnerTables();
+            renderPartnerBreakdown();
+            renderMarketingStats();
+            renderMarketingCampaigns();
+            renderMarketingChannels();
+            renderManagementOverview();
+        }
+
+        // PARTICIPANTS SECTION
+        function renderParticipantStats() {
+            const data = allData.participants;
+            const total = data.length;
+            const active = data.filter(p => p.color_mm28tqgd === 'Active').length;
+            const inactive = data.filter(p => p.color_mm28tqgd === 'Inactive').length;
+
+            const html = `
+                <div class="stat-card info">
+                    <div class="stat-value">${total}</div>
+                    <div class="stat-label">Total Participants</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-value">${active}</div>
+                    <div class="stat-label">Active Participants</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-value">${inactive}</div>
+                    <div class="stat-label">Inactive / Alumni</div>
+                </div>
+            `;
+            document.getElementById('participantsStatsContainer').innerHTML = html;
+            renderZipcodeHeatmap();
+        }
+
+        function renderZipcodeHeatmap() {
+            const data = allData.participants;
+            const zipcodeMap = {};
+
+            data.forEach(p => {
+                if (p.location_mm28aebp) {
+                    const zip = p.location_mm28aebp.match(/\d{5}/)?.[0];
+                    if (zip) {
+                        zipcodeMap[zip] = (zipcodeMap[zip] || 0) + 1;
+                    }
+                }
+            });
+
+            const birminghamZips = [
+                '35203', '35204', '35205', '35206', '35207', '35208', '35209', '35210',
+                '35211', '35212', '35213', '35214', '35215', '35216', '35217', '35218',
+                '35219', '35220', '35221', '35222', '35223', '35224', '35225', '35226',
+                '35228', '35229', '35235', '35242', '35243', '35244', '35246', '35249'
+            ];
+
+            const maxCount = Math.max(...Object.values(zipcodeMap), 1);
+            const html = birminghamZips.map(zip => {
+                const count = zipcodeMap[zip] || 0;
+                let classname = 'empty';
+                if (count > 0) {
+                    const percent = count / maxCount;
+                    classname = percent > 0.6 ? 'high' : percent > 0.3 ? 'medium' : 'low';
+                }
+                return `<div class="zipcode-cell ${classname}" title="${zip}: ${count} participants">${zip}<br><small>${count}</small></div>`;
+            }).join('');
+
+            document.getElementById('zipcodeHeatmap').innerHTML = html;
+        }
+
+        function renderParticipantBreakdown() {
+            const data = allData.participants;
+
+            const statusCounts = {};
+            data.forEach(p => {
+                const status = p.color_mm28tqgd || 'Unknown';
+                statusCounts[status] = (statusCounts[status] || 0) + 1;
+            });
+
+            const programCounts = {};
+            data.forEach(p => {
+                const prog = p.color_mm2ybdsg || 'Unassigned';
+                programCounts[prog] = (programCounts[prog] || 0) + 1;
+            });
+
+            const deptCounts = {};
+            data.forEach(p => {
+                const dept = p.dropdown_mm28exwm || 'Unassigned';
+                deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+            });
+
+            document.getElementById('statusBreakdown').innerHTML = `
+                <div class="breakdown-card">
+                    <h4>By Status</h4>
+                    <ul class="breakdown-list">
+                        ${Object.entries(statusCounts).map(([k, v]) => `<li class="breakdown-item"><span>${k}</span><span>${v}</span></li>`).join('')}
+                    </ul>
+                </div>
+            `;
+
+            document.getElementById('programBreakdown').innerHTML = `
+                <div class="breakdown-card">
+                    <h4>By Program/Category</h4>
+                    <ul class="breakdown-list">
+                        ${Object.entries(programCounts).map(([k, v]) => `<li class="breakdown-item"><span>${k}</span><span>${v}</span></li>`).join('')}
+                    </ul>
+                </div>
+            `;
+
+            document.getElementById('departmentBreakdown').innerHTML = `
+                <div class="breakdown-card">
+                    <h4>By Department</h4>
+                    <ul class="breakdown-list">
+                        ${Object.entries(deptCounts).map(([k, v]) => `<li class="breakdown-item"><span>${k}</span><span>${v}</span></li>`).join('')}
+                    </ul>
+                </div>
+            `;
+
+            const ctx = document.getElementById('participantStatusChart');
+            if (chartInstances.participantStatus) chartInstances.participantStatus.destroy();
+            chartInstances.participantStatus = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{
+                        data: Object.values(statusCounts),
+                        backgroundColor: ['#3498db', '#e74c3c', '#f39c12']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+
+        // PARTNERS SECTION
+        function renderPartnerStats() {
+            const data = allData.partners;
+            const total = data.length;
+            const totalDonations = data.reduce((sum, p) => {
+                const amount = parseFloat(p.numeric_mm2886n2) || 0;
+                return sum + amount;
+            }, 0);
+            const totalSlots = data.reduce((sum, p) => {
+                const slots = parseFloat(p.numeric_mm28kjd9) || 0;
+                return sum + slots;
+            }, 0);
+
+            const html = `
+                <div class="stat-card info">
+                    <div class="stat-value">${total}</div>
+                    <div class="stat-label">Total Partners</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-value">$${(totalDonations/1000).toFixed(0)}K</div>
+                    <div class="stat-label">Total Donations</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-value">${totalSlots}</div>
+                    <div class="stat-label">Job Placements Available</div>
+                </div>
+            `;
+            document.getElementById('partnersStatsContainer').innerHTML = html;
+        }
+
+        function renderPartnerTables() {
+            const data = allData.partners;
+
+            const donationHTML = data.map(p => `
+                <tr>
+                    <td><strong>${p.name}</strong></td>
+                    <td>${p.dropdown_mm28jwg4 || '-'}</td>
+                    <td>$${parseFloat(p.numeric_mm2886n2 || 0).toLocaleString()}</td>
+                    <td>${parseFloat(p.numeric_mm28kjd9 || 0)}</td>
+                    <td>${p.color_mm28m1nh || '-'}</td>
+                </tr>
+            `).join('');
+            document.getElementById('donationTableBody').innerHTML = donationHTML;
+
+            const programHTML = data.map(p => {
+                const startDate = p.date_mm31b6ea ? new Date(p.date_mm31b6ea).toLocaleDateString() : 'N/A';
+                const endDate = p.date_mm319anh ? new Date(p.date_mm319anh).toLocaleDateString() : 'Ongoing';
+                const duration = p.date_mm31b6ea && p.date_mm319anh ?
+                    Math.round((new Date(p.date_mm319anh) - new Date(p.date_mm31b6ea)) / (1000 * 60 * 60 * 24 / 365)) + ' years' :
+                    'Active';
+
+                return `
+                    <tr>
+                        <td><strong>${p.name}</strong></td>
+                        <td>${p.dropdown_mm28c4sa || '-'}</td>
+                        <td>${startDate} to ${endDate} (${duration})</td>
+                        <td>${parseFloat(p.numeric_mm28kjd9 || 0)}</td>
+                        <td>${p.text_mm2817s2 || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+            document.getElementById('programTableBody').innerHTML = programHTML;
+        }
+
+        function renderPartnerBreakdown() {
+            const data = allData.partners;
+
+            const contactCounts = {};
+            data.forEach(p => {
+                const type = p.dropdown_mm28jwg4 || 'Unassigned';
+                contactCounts[type] = (contactCounts[type] || 0) + 1;
+            });
+
+            const stageCounts = {};
+            data.forEach(p => {
+                const stage = p.color_mm28m1nh || 'Unknown';
+                stageCounts[stage] = (stageCounts[stage] || 0) + 1;
+            });
+
+            document.getElementById('partnerTypeBreakdown').innerHTML = `
+                <div class="breakdown-card">
+                    <h4>By Contact Type</h4>
+                    <ul class="breakdown-list">
+                        ${Object.entries(contactCounts).map(([k, v]) => `<li class="breakdown-item"><span>${k}</span><span>${v}</span></li>`).join('')}
+                    </ul>
+                </div>
+            `;
+
+            document.getElementById('partnerStageBreakdown').innerHTML = `
+                <div class="breakdown-card">
+                    <h4>By Relationship Stage</h4>
+                    <ul class="breakdown-list">
+                        ${Object.entries(stageCounts).map(([k, v]) => `<li class="breakdown-item"><span>${k}</span><span>${v}</span></li>`).join('')}
+                    </ul>
+                </div>
+            `;
+
+            const ctx = document.getElementById('partnerTypeChart');
+            if (chartInstances.partnerType) chartInstances.partnerType.destroy();
+            chartInstances.partnerType = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(contactCounts),
+                    datasets: [{
+                        label: 'Partners by Type',
+                        data: Object.values(contactCounts),
+                        backgroundColor: '#e74c3c'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // MARKETING SECTION
+        function renderMarketingStats() {
+            const data = allData.marketing;
+            const avgCTR = data.length > 0 ? (data.reduce((sum, m) => sum + (parseFloat(m.numeric_mm31cfpz) || 0), 0) / data.length).toFixed(2) : '0';
+            const totalOpens = data.reduce((sum, m) => sum + (parseFloat(m.numeric_mm31zz9j) || 0), 0);
+            const totalCampaigns = data.length;
+
+            const html = `
+                <div class="stat-card info">
+                    <div class="stat-value">${totalCampaigns}</div>
+                    <div class="stat-label">Active Campaigns</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-value">${avgCTR}%</div>
+                    <div class="stat-label">Avg Click-Through Rate</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-value">${totalOpens.toLocaleString()}</div>
+                    <div class="stat-label">Total Newsletter Opens</div>
+                </div>
+            `;
+            document.getElementById('marketingStatsContainer').innerHTML = html;
+        }
+
+        function renderMarketingCampaigns() {
+            const data = allData.marketing;
+            const html = data.map(m => {
+                const growth = parseFloat(m.numeric_mm33k7yd || 0);
+                const growthClass = growth > 0 ? 'growth-positive' : 'growth-negative';
+
+                return `
+                    <tr>
+                        <td><strong>${m.name}</strong></td>
+                        <td>${m.dropdown_mm31wyzn || '-'}</td>
+                        <td>${m.date_mm33s7em ? new Date(m.date_mm33s7em).toLocaleDateString() : '-'}</td>
+                        <td>${parseFloat(m.numeric_mm31cfpz || 0).toFixed(2)}%</td>
+                        <td>${parseInt(m.numeric_mm31zz9j || 0)}</td>
+                        <td>${parseInt(m.numeric_mm33krrk || 0)}</td>
+                        <td>${parseInt(m.numeric_mm33qg94 || 0)}</td>
+                        <td class="${growthClass}">${growth > 0 ? '+' : ''}${growth.toFixed(1)}%</td>
+                        <td><span class="info-badge">${m.color_mm31c5ej || '—'}</span></td>
+                    </tr>
+                `;
+            }).join('');
+            document.getElementById('campaignTableBody').innerHTML = html;
+        }
+
+        function renderMarketingChannels() {
+            const data = allData.marketing;
+
+            const channelCounts = {};
+            data.forEach(m => {
+                const channel = m.dropdown_mm31wyzn || 'Other';
+                channelCounts[channel] = (channelCounts[channel] || 0) + 1;
+            });
+
+            const priorityCounts = {};
+            data.forEach(m => {
+                const priority = m.color_mm31c5ej || 'Unknown';
+                priorityCounts[priority] = (priorityCounts[priority] || 0) + 1;
+            });
+
+            document.getElementById('channelBreakdown').innerHTML = `
+                <div class="breakdown-card">
+                    <h4>By Channel</h4>
+                    <ul class="breakdown-list">
+                        ${Object.entries(channelCounts).map(([k, v]) => `<li class="breakdown-item"><span>${k}</span><span>${v}</span></li>`).join('')}
+                    </ul>
+                </div>
+            `;
+
+            document.getElementById('priorityBreakdown').innerHTML = `
+                <div class="breakdown-card">
+                    <h4>By Priority</h4>
+                    <ul class="breakdown-list">
+                        ${Object.entries(priorityCounts).map(([k, v]) => `<li class="breakdown-item"><span>${k}</span><span>${v}</span></li>`).join('')}
+                    </ul>
+                </div>
+            `;
+
+            const ctx1 = document.getElementById('marketingChannelChart');
+            if (chartInstances.channel) chartInstances.channel.destroy();
+            chartInstances.channel = new Chart(ctx1, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(channelCounts),
+                    datasets: [{
+                        data: Object.values(channelCounts),
+                        backgroundColor: ['#3498db', '#e74c3c', '#27ae60', '#f39c12', '#9b59b6']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            const ctx2 = document.getElementById('ctrChart');
+            if (chartInstances.ctr) chartInstances.ctr.destroy();
+            chartInstances.ctr = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: data.map(m => m.name.substring(0, 20)),
+                    datasets: [{
+                        label: 'Click-Through Rate (%)',
+                        data: data.map(m => parseFloat(m.numeric_mm31cfpz || 0)),
+                        backgroundColor: '#3498db',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // MANAGEMENT OVERVIEW
+        function renderManagementOverview() {
+            const participants = allData.participants.length;
+            const partners = allData.partners.length;
+            const campaigns = allData.marketing.length;
+
+            const totalDonations = allData.partners.reduce((sum, p) => sum + (parseFloat(p.numeric_mm2886n2) || 0), 0);
+            const totalSlots = allData.partners.reduce((sum, p) => sum + (parseFloat(p.numeric_mm28kjd9) || 0), 0);
+            const avgCTR = allData.marketing.length > 0 ? (allData.marketing.reduce((sum, m) => sum + (parseFloat(m.numeric_mm31cfpz) || 0), 0) / allData.marketing.length).toFixed(2) : '0';
+
+            const html = `
+                <div class="breakdown-card" style="border-color: var(--info)">
+                    <h4>👥 Participant Metrics</h4>
+                    <ul class="breakdown-list">
+                        <li class="breakdown-item"><span>Total Participants</span><span>${participants}</span></li>
+                        <li class="breakdown-item"><span>Active</span><span>${allData.participants.filter(p => p.color_mm28tqgd === 'Active').length}</span></li>
+                        <li class="breakdown-item"><span>Inactive / Alumni</span><span>${allData.participants.filter(p => p.color_mm28tqgd === 'Inactive').length}</span></li>
+                    </ul>
+                </div>
+
+                <div class="breakdown-card" style="border-color: var(--success)">
+                    <h4>🤝 Partnership Metrics</h4>
+                    <ul class="breakdown-list">
+                        <li class="breakdown-item"><span>Total Partners</span><span>${partners}</span></li>
+                        <li class="breakdown-item"><span>Total Contributions</span><span>$${(totalDonations/1000).toFixed(0)}K</span></li>
+                        <li class="breakdown-item"><span>Available Placements</span><span>${totalSlots}</span></li>
+                    </ul>
+                </div>
+
+                <div class="breakdown-card" style="border-color: var(--warning)">
+                    <h4>📢 Marketing Metrics</h4>
+                    <ul class="breakdown-list">
+                        <li class="breakdown-item"><span>Active Campaigns</span><span>${campaigns}</span></li>
+                        <li class="breakdown-item"><span>Avg Click-Through Rate</span><span>${avgCTR}%</span></li>
+                        <li class="breakdown-item"><span>Total Newsletter Opens</span><span>${allData.marketing.reduce((sum, m) => sum + (parseFloat(m.numeric_mm31zz9j) || 0), 0).toLocaleString()}</span></li>
+                    </ul>
+                </div>
+            `;
+            document.getElementById('managementOverview').innerHTML = html;
+        }
+
+        function switchTab(tabName, btn) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        window.addEventListener('load', initDashboard);
+    </script>
+</body>
+</html>
