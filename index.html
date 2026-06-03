@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Birmingham Corps Data Metrics Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
-    <!-- Feature 2: Netlify Identity (enable in Netlify Dashboard → Site → Identity) -->
-    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
     <style>
         :root {
             color-scheme: light;
@@ -63,7 +61,7 @@
         .auth-box p { color: #7f8c8d; font-size: 14px; margin-bottom: 28px; line-height: 1.5; }
         .btn-login { background: var(--accent); color: white; border: none; padding: 14px 36px; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; transition: all 0.2s; }
         .btn-login:hover { background: #c0392b; transform: translateY(-1px); }
-        #dashboardContent { display: none; }
+        #dashboardContent { display: block; }
 
         .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
 
@@ -138,15 +136,6 @@
     </style>
 </head>
 <body>
-    <!-- Auth Gate (Feature 2: Netlify Identity) -->
-    <div id="authGate">
-      <div class="auth-box">
-        <div class="lock">🔒</div>
-        <h2>Staff Login Required</h2>
-        <p>This dashboard contains confidential Birmingham Corps program data. Staff members only.</p>
-        <button class="btn-login" onclick="window.netlifyIdentity && window.netlifyIdentity.open()">Sign In with Netlify Identity</button>
-      </div>
-    </div>
 
     <div id="dashboardContent">
     <div class="navbar">
@@ -641,32 +630,6 @@
 
         window.addEventListener('load', initDashboard);
 
-        // ── Feature 2: Netlify Identity Auth Gate ────────────────────────────
-        if (window.netlifyIdentity) {
-          window.netlifyIdentity.on('init', function(user) {
-            if (!user) {
-              // Not logged in — show gate, hide dashboard
-              document.getElementById('authGate').style.display = 'flex';
-              document.getElementById('dashboardContent').style.display = 'none';
-              // Reload page after login so dashboard initializes cleanly
-              window.netlifyIdentity.on('login', function() {
-                document.location.reload();
-              });
-            } else {
-              // Logged in — show dashboard, hide gate, show logout button
-              document.getElementById('authGate').style.display = 'none';
-              document.getElementById('dashboardContent').style.display = 'block';
-              document.getElementById('logoutBtn').style.display = 'block';
-              window.netlifyIdentity.on('logout', function() {
-                document.location.reload();
-              });
-            }
-          });
-        } else {
-          // Identity script not loaded (local dev) — show dashboard without gate
-          document.getElementById('authGate').style.display = 'none';
-          document.getElementById('dashboardContent').style.display = 'block';
-        }
     </script>
 </div><!-- end dashboardContent -->
 </body>
