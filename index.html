@@ -195,7 +195,7 @@
             <div class="section">
                 <div class="section-title">Program &amp; Placement Partners</div>
                 <p style="font-size:12px;color:#7f8c8d;margin-bottom:12px;">Active programming partners only — AmeriCorps host sites, Career Navigator partners, employers, and community organizations. Financial funders and donors are listed in the Contributions table above.</p>
-                <table><thead><tr><th>Partner Name</th><th>Program / Department</th><th>Partnership Duration</th><th>Primary Contact</th></tr></thead>
+                <table><thead><tr><th>Partner Name</th><th>Partner Role</th><th>Status</th><th>Primary Contact</th></tr></thead>
                 <tbody id="programTableBody"></tbody></table>
             </div>
             <div class="section">
@@ -525,32 +525,75 @@
                 </tr>`;
             }).join('');
 
-            // Program & Placement Partners — exclude pure funders/donors, show only programming partners
-            const programTypes = ['Employer','Community Partner','Facilitor','Americorps Partner','AmeriCorps Partner'];
-            const programPartners = data.filter(p => {
-                const types = (p.dropdown_mm28jwg4 || '').split(',').map(t => t.trim());
-                const hasProgramType = types.some(t => programTypes.some(pt => t.toLowerCase().includes(pt.toLowerCase())));
-                const hasDept = p.dropdown_mm28c4sa && p.dropdown_mm28c4sa.trim();
-                return hasProgramType || hasDept;
-            }).filter(p => {
-                // Exclude if ONLY tagged as Funder/Donor/Gov Agency with no program assignment
-                const types = (p.dropdown_mm28jwg4 || '').split(',').map(t => t.trim());
-                const onlyFinancial = types.every(t => ['Funder','Donor','Gov Agency',''].includes(t));
-                const hasDept = p.dropdown_mm28c4sa && p.dropdown_mm28c4sa.trim();
-                return !(onlyFinancial && !hasDept);
+            // Program & Placement Partners — show only genuine programming partners, deduplicated
+            // Exclude any partner tagged as Funder or Donor (they belong in the contributions table above)
+            // Include only partners with a primary programming role: Employer, Community Partner, AmeriCorps Partner, Facilitator
+            const financialTags = ['funder','donor'];
+            const programTags   = ['employer','community partner','americorps partner','facilitor'];
+
+            // Label map — convert raw Monday.com contact types to plain English
+            function partnerRoleLabel(raw) {
+                if (!raw) return '-';
+                const t = raw.toLowerCase();
+                if (t.includes('americorps partner')) return 'AmeriCorps Host Site';
+                if (t.includes('employer'))           return 'Employer Partner';
+                if (t.includes('community partner'))  return 'Community Partner';
+                if (t.includes('facilitor'))          return 'Program Facilitator';
+                return raw;
+            }
+
+            // Stage label → short status badge
+            function stageLabel(raw) {
+                if (!raw) return '';
+                if (raw.toLowerCase().includes('current')) return 'Active';
+                if (raw.toLowerCase().includes('donated') || raw.toLowerCase().includes('engagement')) return 'Active';
+                if (raw.toLowerCase().includes('past') || raw.toLowerCase().includes('former') || raw.toLowerCase().includes('worked')) return 'Past';
+                if (raw.toLowerCase().includes('prospective')) return 'Prospective';
+                return raw;
+            }
+
+            // Filter: must have a program role AND must not have any financial tag
+            const filtered = data.filter(p => {
+                const types = (p.dropdown_mm28jwg4 || '').toLowerCase().split(',').map(t => t.trim());
+                const hasFinancial = types.some(t => financialTags.some(f => t.includes(f)));
+                const hasProgram   = types.some(t => programTags.some(r => t.includes(r)));
+                return hasProgram && !hasFinancial;
             });
 
-            document.getElementById('programTableBody').innerHTML = programPartners.map(p => {
-                const start = p.date_mm31b6ea ? new Date(p.date_mm31b6ea).toLocaleDateString() : 'N/A';
-                const end = p.date_mm319anh ? new Date(p.date_mm319anh).toLocaleDateString() : 'Ongoing';
-                const dur = p.date_mm31b6ea ? `${start} – ${end}` : 'Active';
-                return `<tr>
-                    <td><strong>${p.name}</strong></td>
-                    <td>${p.dropdown_mm28c4sa || p.dropdown_mm28jwg4 || '-'}</td>
-                    <td>${dur}</td>
-                    <td>${p.text_mm2817s2 || '-'}</td>
-                </tr>`;
-            }).join('');
+            // Deduplicate by name — prefer active/current relationship over past
+            const stageRank = {'Active':0,'Prospective':1,'Past':2,'':3};
+            filtered.sort((a,b) => {
+                const ra = stageRank[stageLabel(a.color_mm28m1nh)] ?? 3;
+                const rb = stageRank[stageLabel(b.color_mm28m1nh)] ?? 3;
+                return ra - rb;
+            });
+            const seen = new Set();
+            const programPartners = filtered.filter(p => {
+                if (seen.has(p.name.trim().toLowerCase())) return false;
+                seen.add(p.name.trim().toLowerCase());
+                return true;
+            });
+
+            document.getElementById('programTableBody').innerHTML = programPartners.length
+                ? programPartners.map(p => {
+                    const role   = partnerRoleLabel(p.dropdown_mm28jwg4);
+                    const status = stageLabel(p.color_mm28m1nh);
+                    const contact = p.text_mm2817s2 || '-';
+                    const badge  = status === 'Active'
+                        ? `<span style="background:#e8f8ef;color:#27ae60;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Active</span>`
+                        : status === 'Past'
+                        ? `<span style="background:#f4f6fa;color:#7f8c8d;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Past</span>`
+                        : status === 'Prospective'
+                        ? `<span style="background:#fef9e7;color:#d4a843;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Prospective</span>`
+                        : '';
+                    return `<tr>
+                        <td><strong>${p.name}</strong></td>
+                        <td>${role}</td>
+                        <td>${badge}</td>
+                        <td>${contact}</td>
+                    </tr>`;
+                }).join('')
+                : '<tr><td colspan="4" style="text-align:center;color:#bdc3c7;padding:20px;">No program partners found</td></tr>';
         }
 
         function renderPartnerBreakdown() {
