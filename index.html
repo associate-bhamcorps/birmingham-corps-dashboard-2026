@@ -173,10 +173,10 @@
             </div>
             <div class="section">
                 <div class="section-title">Participant Status Breakdown</div>
+                <p style="font-size:12px;color:#7f8c8d;margin-bottom:16px;">Note: <strong>Inactive</strong> captures both program completers/alumni and participants who did not complete the program. <strong>Not Set</strong> means a status has not yet been assigned to the record.</p>
                 <div class="breakdown-grid">
                     <div id="statusBreakdown"></div>
                     <div id="programBreakdown"></div>
-                    <div id="departmentBreakdown"></div>
                 </div>
                 <div class="chart-container"><canvas id="participantStatusChart"></canvas></div>
             </div>
@@ -189,12 +189,13 @@
             </div>
             <div class="section">
                 <div class="section-title">Partner Donations &amp; Contributions</div>
-                <table><thead><tr><th>Partner Name</th><th>Contact Type</th><th>Contribution Amount</th><th>Jobs/Slots Available</th><th>Relationship Stage</th></tr></thead>
+                <table><thead><tr><th>Partner Name</th><th>Contact Type</th><th>Contribution Amount</th><th>Relationship Stage</th></tr></thead>
                 <tbody id="donationTableBody"></tbody></table>
             </div>
             <div class="section">
-                <div class="section-title">Program Assignments &amp; Placements</div>
-                <table><thead><tr><th>Partner Name</th><th>Department/Program</th><th>Partnership Duration</th><th>Total Slots</th><th>Primary Contact</th></tr></thead>
+                <div class="section-title">Program &amp; Placement Partners</div>
+                <p style="font-size:12px;color:#7f8c8d;margin-bottom:12px;">Active programming partners only — AmeriCorps host sites, Career Navigator partners, employers, and community organizations. Financial funders and donors are listed in the Contributions table above.</p>
+                <table><thead><tr><th>Partner Name</th><th>Program / Department</th><th>Partnership Duration</th><th>Primary Contact</th></tr></thead>
                 <tbody id="programTableBody"></tbody></table>
             </div>
             <div class="section">
@@ -438,28 +439,38 @@
 
         function renderParticipantBreakdown() {
             const data = allData.participants;
-            const statusCounts = {}, programCounts = {}, deptCounts = {};
+            const statusCounts = {}, programCounts = {};
             data.forEach(p => {
-                const s = p.color_mm28tqgd || 'Unknown';
+                const s = p.color_mm28tqgd && p.color_mm28tqgd.trim() ? p.color_mm28tqgd : 'Not Set';
                 statusCounts[s] = (statusCounts[s] || 0) + 1;
-                const pr = p.color_mm2ybdsg || 'Unassigned';
+                const pr = p.color_mm2ybdsg && p.color_mm2ybdsg.trim() ? p.color_mm2ybdsg : 'Unassigned';
                 programCounts[pr] = (programCounts[pr] || 0) + 1;
-                const d = p.dropdown_mm28exwm || 'Unassigned';
-                deptCounts[d] = (deptCounts[d] || 0) + 1;
             });
+
+            // Sort status: Active first, then Inactive, then Not Set
+            const statusOrder = ['Active', 'Inactive', 'Not Set'];
+            const sortedStatus = Object.fromEntries(
+                Object.entries(statusCounts).sort(([a], [b]) => {
+                    const ai = statusOrder.indexOf(a), bi = statusOrder.indexOf(b);
+                    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+                })
+            );
+
             const makeCard = (title, counts) => `
                 <div class="breakdown-card"><h4>${title}</h4>
                 <ul class="breakdown-list">${Object.entries(counts).map(([k,v]) =>
                     `<li class="breakdown-item"><span>${k}</span><span>${v}</span></li>`).join('')}</ul></div>`;
-            document.getElementById('statusBreakdown').innerHTML = makeCard('By Status', statusCounts);
-            document.getElementById('programBreakdown').innerHTML = makeCard('By Program/Category', programCounts);
-            document.getElementById('departmentBreakdown').innerHTML = makeCard('By Department', deptCounts);
+            document.getElementById('statusBreakdown').innerHTML = makeCard('By Status', sortedStatus);
+            document.getElementById('programBreakdown').innerHTML = makeCard('By Program / Category', programCounts);
 
             const ctx = document.getElementById('participantStatusChart');
+            const statusLabels = Object.keys(sortedStatus);
+            const colorMap = { 'Active': '#27ae60', 'Inactive': '#e74c3c', 'Not Set': '#f39c12' };
+            const chartColors = statusLabels.map(l => colorMap[l] || '#95a5a6');
             if (chartInstances.participantStatus) chartInstances.participantStatus.destroy();
             chartInstances.participantStatus = new Chart(ctx, {
                 type: 'doughnut',
-                data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#3498db','#e74c3c','#f39c12'] }] },
+                data: { labels: statusLabels, datasets: [{ data: Object.values(sortedStatus), backgroundColor: chartColors }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
             });
         }
@@ -477,25 +488,50 @@
 
         function renderPartnerTables() {
             const data = allData.partners;
-            document.getElementById('donationTableBody').innerHTML = data.map(p => `
-                <tr>
-                    <td><strong>${p.name}</strong></td>
-                    <td>${p.dropdown_mm28jwg4 || '-'}</td>
-                    <td>$${parseFloat(p.numeric_mm2886n2 || 0).toLocaleString()}</td>
-                    <td>${parseFloat(p.numeric_mm28kjd9 || 0)}</td>
-                    <td>${p.color_mm28m1nh || '-'}</td>
-                </tr>`).join('');
 
-            document.getElementById('programTableBody').innerHTML = data.map(p => {
-                const start = p.date_mm31b6ea ? new Date(p.date_mm31b6ea).toLocaleDateString() : 'N/A';
-                const end = p.date_mm319anh ? new Date(p.date_mm319anh).toLocaleDateString() : 'Ongoing';
-                const dur = p.date_mm31b6ea && p.date_mm319anh ?
-                    Math.round((new Date(p.date_mm319anh) - new Date(p.date_mm31b6ea)) / (1000*60*60*24/365)) + ' years' : 'Active';
+            // Sort donations by relationship stage
+            const stageOrder = ['Current Engagement','Donated','Funding Discussion','Prospective Partner','Volunteer Engagement','Information Exchange','Worked with in Past','Inactive Organization'];
+            const sortedDonations = [...data].sort((a, b) => {
+                const ai = stageOrder.indexOf(a.color_mm28m1nh || '');
+                const bi = stageOrder.indexOf(b.color_mm28m1nh || '');
+                return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+            });
+
+            // Render donations table — no Jobs/Slots column
+            document.getElementById('donationTableBody').innerHTML = sortedDonations.map(p => {
+                const amt = parseFloat(p.numeric_mm2886n2 || 0);
+                const amtDisplay = amt > 0 ? '$' + amt.toLocaleString() : '—';
                 return `<tr>
                     <td><strong>${p.name}</strong></td>
-                    <td>${p.dropdown_mm28c4sa || '-'}</td>
-                    <td>${start} to ${end} (${dur})</td>
-                    <td>${parseFloat(p.numeric_mm28kjd9 || 0)}</td>
+                    <td>${p.dropdown_mm28jwg4 || '-'}</td>
+                    <td>${amtDisplay}</td>
+                    <td>${p.color_mm28m1nh || '-'}</td>
+                </tr>`;
+            }).join('');
+
+            // Program & Placement Partners — exclude pure funders/donors, show only programming partners
+            const programTypes = ['Employer','Community Partner','Facilitor','Americorps Partner','AmeriCorps Partner'];
+            const programPartners = data.filter(p => {
+                const types = (p.dropdown_mm28jwg4 || '').split(',').map(t => t.trim());
+                const hasProgramType = types.some(t => programTypes.some(pt => t.toLowerCase().includes(pt.toLowerCase())));
+                const hasDept = p.dropdown_mm28c4sa && p.dropdown_mm28c4sa.trim();
+                return hasProgramType || hasDept;
+            }).filter(p => {
+                // Exclude if ONLY tagged as Funder/Donor/Gov Agency with no program assignment
+                const types = (p.dropdown_mm28jwg4 || '').split(',').map(t => t.trim());
+                const onlyFinancial = types.every(t => ['Funder','Donor','Gov Agency',''].includes(t));
+                const hasDept = p.dropdown_mm28c4sa && p.dropdown_mm28c4sa.trim();
+                return !(onlyFinancial && !hasDept);
+            });
+
+            document.getElementById('programTableBody').innerHTML = programPartners.map(p => {
+                const start = p.date_mm31b6ea ? new Date(p.date_mm31b6ea).toLocaleDateString() : 'N/A';
+                const end = p.date_mm319anh ? new Date(p.date_mm319anh).toLocaleDateString() : 'Ongoing';
+                const dur = p.date_mm31b6ea ? `${start} – ${end}` : 'Active';
+                return `<tr>
+                    <td><strong>${p.name}</strong></td>
+                    <td>${p.dropdown_mm28c4sa || p.dropdown_mm28jwg4 || '-'}</td>
+                    <td>${dur}</td>
                     <td>${p.text_mm2817s2 || '-'}</td>
                 </tr>`;
             }).join('');
