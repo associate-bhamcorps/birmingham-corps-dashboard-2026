@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Birmingham Corps Data Metrics Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <style>
         :root {
             color-scheme: light;
@@ -165,11 +167,9 @@
                 <div class="loading-overlay"><div class="spinner"></div>Loading participants...</div>
             </div>
             <div class="section">
-                <div class="section-title">Participant Distribution by Zipcode (Birmingham, AL)</div>
-                <div class="heatmap-container">
-                    <div id="zipcodeHeatmap" class="zipcode-grid"></div>
-                    <p style="font-size:12px;color:#7f8c8d;margin-top:15px;">🔴 High concentration | 🟠 Medium | 🟢 Low | ⚪ No data</p>
-                </div>
+                <div class="section-title">Participant Geographic Distribution — Birmingham Metro Area</div>
+                <div id="participantMap" style="height:460px;border-radius:8px;z-index:1;margin-bottom:8px;"></div>
+                <div id="mapLegend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:12px;"></div>
             </div>
             <div class="section">
                 <div class="section-title">Participant Status Breakdown</div>
@@ -415,26 +415,131 @@
 
         function renderZipcodeHeatmap() {
             const data = allData.participants;
-            const zipcodeMap = {};
+
+            // Count participants per zip code
+            const zipCounts = {};
             data.forEach(p => {
                 if (p.location_mm28aebp) {
-                    const zip = p.location_mm28aebp.match(/\d{5}/)?.[0];
-                    if (zip) zipcodeMap[zip] = (zipcodeMap[zip] || 0) + 1;
+                    const zip = (p.location_mm28aebp.match(/\d{5}/) || [])[0];
+                    if (zip) zipCounts[zip] = (zipCounts[zip] || 0) + 1;
                 }
             });
-            const birminghamZips = [
-                '35203','35204','35205','35206','35207','35208','35209','35210',
-                '35211','35212','35213','35214','35215','35216','35217','35218',
-                '35219','35220','35221','35222','35223','35224','35225','35226',
-                '35228','35229','35235','35242','35243','35244','35246','35249'
+
+            // ── All Birmingham metro zip codes with neighborhood names & area groupings ──
+            const ZIP_DATA = [
+                // Downtown / Central
+                { zip:'35203', name:'Downtown / Central Business District',  area:'Downtown',          lat:33.5186, lng:-86.8104 },
+                { zip:'35233', name:'UAB Campus / Southside Core',            area:'Downtown',          lat:33.5042, lng:-86.8009 },
+                // Southside
+                { zip:'35205', name:'Southside / Five Points South',          area:'Southside',         lat:33.4949, lng:-86.7976 },
+                { zip:'35222', name:'Avondale / Lakeview',                    area:'Southside',         lat:33.5122, lng:-86.7699 },
+                // West Side
+                { zip:'35204', name:'Smithfield / Graymont',                  area:'West Side',         lat:33.5253, lng:-86.8320 },
+                { zip:'35208', name:'West End / Wylam',                       area:'West Side',         lat:33.4914, lng:-86.8521 },
+                { zip:'35211', name:'Ensley / Pratt City',                    area:'West Side',         lat:33.4932, lng:-86.8763 },
+                { zip:'35218', name:'Ensley North / Brown Springs',           area:'West Side',         lat:33.5088, lng:-86.8800 },
+                // Southwest
+                { zip:'35221', name:'Pleasant Grove / Dolomite',              area:'Southwest',         lat:33.4766, lng:-86.9141 },
+                { zip:'35224', name:'Fairfield',                              area:'Southwest',         lat:33.4858, lng:-86.9139 },
+                { zip:'35228', name:'Midfield / Brighton',                    area:'Southwest',         lat:33.4622, lng:-86.8930 },
+                // North Birmingham
+                { zip:'35207', name:'North Birmingham / Collegeville',        area:'North Birmingham',  lat:33.5587, lng:-86.8058 },
+                { zip:'35214', name:'Forestdale / North Pratt City',          area:'North Birmingham',  lat:33.5770, lng:-86.8448 },
+                { zip:'35217', name:'Tarrant City / Inglenook',               area:'North Birmingham',  lat:33.5893, lng:-86.7742 },
+                { zip:'35234', name:'North Birmingham / Harriman Park',       area:'North Birmingham',  lat:33.5611, lng:-86.8178 },
+                // East Side
+                { zip:'35206', name:'East Lake / Roebuck Springs',            area:'East Side',         lat:33.5393, lng:-86.7476 },
+                { zip:'35210', name:'East Birmingham / Irondale',             area:'East Side',         lat:33.5202, lng:-86.7083 },
+                { zip:'35212', name:'Woodlawn / Norwood',                     area:'East Side',         lat:33.5394, lng:-86.7793 },
+                // Northeast
+                { zip:'35215', name:'Center Point',                           area:'Northeast',         lat:33.6156, lng:-86.7238 },
+                { zip:'35235', name:'Center Point Heights / East Lake Hills', area:'Northeast',         lat:33.5952, lng:-86.7101 },
+                // South / Homewood / Hoover
+                { zip:'35209', name:'Homewood / Edgewood',                    area:'South',             lat:33.4649, lng:-86.7954 },
+                { zip:'35216', name:'Hoover / Vestavia Hills',                area:'South',             lat:33.4379, lng:-86.7973 },
+                { zip:'35226', name:'Bluff Park / Vestavia',                  area:'South',             lat:33.4201, lng:-86.8428 },
+                { zip:'35229', name:'Homewood South / Shades Mountain',       area:'South',             lat:33.4516, lng:-86.7917 },
+                { zip:'35244', name:'Hoover / Inverness',                     area:'South',             lat:33.4015, lng:-86.7254 },
+                // Southeast
+                { zip:'35213', name:'Mountain Brook East / Crestwood',        area:'Southeast',         lat:33.4969, lng:-86.7278 },
+                { zip:'35223', name:'Mountain Brook',                         area:'Southeast',         lat:33.4749, lng:-86.7178 },
+                { zip:'35242', name:'Hoover / Liberty Park',                  area:'Southeast',         lat:33.4574, lng:-86.6752 },
+                { zip:'35243', name:'Mountain Brook South',                   area:'Southeast',         lat:33.4449, lng:-86.7305 },
             ];
-            const maxCount = Math.max(...Object.values(zipcodeMap), 1);
-            document.getElementById('zipcodeHeatmap').innerHTML = birminghamZips.map(zip => {
-                const count = zipcodeMap[zip] || 0;
-                const pct = count / maxCount;
-                const cls = count === 0 ? 'empty' : pct > 0.6 ? 'high' : pct > 0.3 ? 'medium' : 'low';
-                return `<div class="zipcode-cell ${cls}" title="${zip}: ${count} participants">${zip}<br><small>${count}</small></div>`;
-            }).join('');
+
+            // Area colors
+            const AREA_COLORS = {
+                'Downtown':         '#2c3e50',
+                'Southside':        '#c0392b',
+                'West Side':        '#8e44ad',
+                'Southwest':        '#e67e22',
+                'North Birmingham': '#27ae60',
+                'East Side':        '#2980b9',
+                'Northeast':        '#17a589',
+                'South':            '#7f8c8d',
+                'Southeast':        '#95a5a6',
+            };
+
+            // Init or re-use map
+            if (!window._bhamMap) {
+                window._bhamMap = L.map('participantMap', { zoomControl: true }).setView([33.5186, -86.8104], 11);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                    maxZoom: 18
+                }).addTo(window._bhamMap);
+            } else {
+                // Clear old layers
+                window._bhamMap.eachLayer(layer => {
+                    if (layer instanceof L.CircleMarker) window._bhamMap.removeLayer(layer);
+                });
+            }
+
+            const maxCount = Math.max(...Object.values(zipCounts), 1);
+
+            ZIP_DATA.forEach(z => {
+                const count  = zipCounts[z.zip] || 0;
+                const color  = AREA_COLORS[z.area] || '#999';
+                const hasData = count > 0;
+
+                // Radius: base 700m + scales with count
+                const radius = hasData ? 700 + (count / maxCount) * 1400 : 700;
+
+                const circle = L.circleMarker([z.lat, z.lng], {
+                    radius:      hasData ? 12 + Math.round((count / maxCount) * 18) : 8,
+                    fillColor:   color,
+                    color:       color,
+                    weight:      hasData ? 2 : 1,
+                    opacity:     hasData ? 0.9 : 0.35,
+                    fillOpacity: hasData ? 0.75 : 0.15,
+                }).addTo(window._bhamMap);
+
+                circle.bindTooltip(`
+                    <div style="font-family:Segoe UI,sans-serif;font-size:13px;min-width:160px;">
+                        <strong style="font-size:14px;">${z.zip}</strong><br>
+                        <span style="color:#555;">${z.name}</span><br>
+                        <hr style="margin:4px 0;border-color:#eee;">
+                        <span style="color:${color};font-weight:700;">${z.area}</span><br>
+                        <strong>${count}</strong> participant${count !== 1 ? 's' : ''}
+                    </div>`, { sticky: true });
+            });
+
+            // Legend
+            const legendEl = document.getElementById('mapLegend');
+            if (legendEl) {
+                legendEl.innerHTML = Object.entries(AREA_COLORS).map(([area, color]) => {
+                    const total = ZIP_DATA
+                        .filter(z => z.area === area)
+                        .reduce((sum, z) => sum + (zipCounts[z.zip] || 0), 0);
+                    return `<div style="display:flex;align-items:center;gap:5px;background:#f4f6fa;padding:4px 10px;border-radius:20px;">
+                        <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>
+                        <span style="color:#2c3e50;font-weight:600;">${area}</span>
+                        ${total > 0 ? `<span style="color:${color};font-weight:700;">(${total})</span>` : ''}
+                    </div>`;
+                }).join('');
+            }
+
+            // Resize fix for tab switching
+            setTimeout(() => { if (window._bhamMap) window._bhamMap.invalidateSize(); }, 100);
         }
 
         function renderParticipantBreakdown() {
@@ -720,6 +825,10 @@
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
+            // Fix Leaflet map size after tab becomes visible
+            if (tabName === 'participants' && window._bhamMap) {
+                setTimeout(() => window._bhamMap.invalidateSize(), 150);
+            }
             btn.classList.add('active');
         }
 
