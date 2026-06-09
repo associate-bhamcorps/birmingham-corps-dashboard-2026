@@ -173,7 +173,7 @@
             </div>
             <div class="section">
                 <div class="section-title">Participant Status Breakdown</div>
-                <p style="font-size:12px;color:#7f8c8d;margin-bottom:16px;">Note: <strong>Inactive</strong> captures both program completers/alumni and participants who did not complete the program. <strong>Not Set</strong> means a status has not yet been assigned to the record.</p>
+                <p style="font-size:12px;color:#7f8c8d;margin-bottom:16px;"><strong>Alumni</strong> = completed the program. <strong>Did Not Complete Program</strong> = withdrawn or no longer in contact. <strong>Not Set</strong> = status has not yet been assigned.</p>
                 <div class="breakdown-grid">
                     <div id="statusBreakdown"></div>
                     <div id="programBreakdown"></div>
@@ -439,16 +439,27 @@
 
         function renderParticipantBreakdown() {
             const data = allData.participants;
+
+            // Map raw Monday.com status values to clean display labels
+            function getStatusLabel(raw) {
+                if (!raw || !raw.trim()) return 'Not Set';
+                const r = raw.trim().toLowerCase();
+                if (r.includes('alumni') || r.includes('completed')) return 'Alumni';
+                if (r.includes('active') || r.includes('enrolled')) return 'Active';
+                if (r.includes('withdrawn') || r.includes('no contact') || r.includes('inactive')) return 'Did Not Complete Program';
+                return raw; // keep any other values as-is
+            }
+
             const statusCounts = {}, programCounts = {};
             data.forEach(p => {
-                const s = p.color_mm28tqgd && p.color_mm28tqgd.trim() ? p.color_mm28tqgd : 'Not Set';
-                statusCounts[s] = (statusCounts[s] || 0) + 1;
+                const label = getStatusLabel(p.color_mm28tqgd);
+                statusCounts[label] = (statusCounts[label] || 0) + 1;
                 const pr = p.color_mm2ybdsg && p.color_mm2ybdsg.trim() ? p.color_mm2ybdsg : 'Unassigned';
                 programCounts[pr] = (programCounts[pr] || 0) + 1;
             });
 
-            // Sort status: Active first, then Inactive, then Not Set
-            const statusOrder = ['Active', 'Inactive', 'Not Set'];
+            // Sort status in a meaningful order
+            const statusOrder = ['Active', 'Alumni', 'Did Not Complete Program', 'Not Set'];
             const sortedStatus = Object.fromEntries(
                 Object.entries(statusCounts).sort(([a], [b]) => {
                     const ai = statusOrder.indexOf(a), bi = statusOrder.indexOf(b);
@@ -465,8 +476,13 @@
 
             const ctx = document.getElementById('participantStatusChart');
             const statusLabels = Object.keys(sortedStatus);
-            const colorMap = { 'Active': '#27ae60', 'Inactive': '#e74c3c', 'Not Set': '#f39c12' };
-            const chartColors = statusLabels.map(l => colorMap[l] || '#95a5a6');
+            const colorMap = {
+                'Active': '#27ae60',
+                'Alumni': '#3498db',
+                'Did Not Complete Program': '#e74c3c',
+                'Not Set': '#95a5a6'
+            };
+            const chartColors = statusLabels.map(l => colorMap[l] || '#bdc3c7');
             if (chartInstances.participantStatus) chartInstances.participantStatus.destroy();
             chartInstances.participantStatus = new Chart(ctx, {
                 type: 'doughnut',
