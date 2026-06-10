@@ -167,8 +167,8 @@
                 <div class="loading-overlay"><div class="spinner"></div>Loading participants...</div>
             </div>
             <div class="section">
-                <div class="section-title">Participant Geographic Distribution — Birmingham Metro Area</div>
-                <div id="participantMap" style="height:460px;border-radius:8px;z-index:1;margin-bottom:8px;"></div>
+                <div class="section-title">Participant Geographic Distribution — State of Alabama</div>
+                <div id="participantMap" style="height:560px;border-radius:8px;z-index:1;margin-bottom:8px;"></div>
                 <div id="mapLegend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:12px;"></div>
             </div>
             <div class="section">
@@ -482,7 +482,7 @@
 
             // Init or re-use map
             if (!window._bhamMap) {
-                window._bhamMap = L.map('participantMap', { zoomControl: true }).setView([33.5186, -86.8104], 11);
+                window._bhamMap = L.map('participantMap', { zoomControl: true }).setView([32.8, -86.8], 7);
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
                     maxZoom: 18
