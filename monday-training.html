@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Birmingham Corps – Monday.com CRM Training</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F8FAFC; }
+  button { font-family: inherit; }
+  #root { min-height: 100vh; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const NAVY = "#1B2A4A";
+const TEAL = "#0D9488";
+const GOLD = "#F59E0B";
+const LIGHT = "#F8FAFC";
+const SLATE = "#475569";
+const INK = "#1E293B";
+
+const boards = [
+  { name: "Participants Professional Directory", items: 228, desc: "Master directory — single source of truth for everyone who has worked with Birmingham Corps", icon: "📋", main: true },
+  { name: "Partners & Funders CRM", items: 60, desc: "Tracks funders, employers, and community partners through your relationship pipeline", icon: "🤝" },
+  { name: "CRM New Contact Intake Form", items: "—", desc: "Submit new contacts via a simple form — they flow into the CRM automatically", icon: "📥" },
+  { name: "Employer Partners 2022–Present", items: "50+", desc: "Historical employer partner data going back to 2022", icon: "🏢" },
+];
+
+const directoryColumns = [
+  { name: "Name", type: "Text", purpose: "Full name of the participant or contact", example: "Alisa Muhammad" },
+  { name: "Contact Type", type: "Dropdown", purpose: "Category of this person — participant, alumni, AmeriCorps member, etc.", example: "Career Navigator Participant" },
+  { name: "Status", type: "Status", purpose: "Where this person stands in their journey", example: "Active - Enrolled" },
+  { name: "Organization / Program Category", type: "Status", purpose: "Which BC program this person is part of", example: "Career Navigator, Talent Bridge" },
+  { name: "Phone / Email", type: "Contact", purpose: "How to reach this person directly", example: "amuhammad.ccdn@gmail.com" },
+  { name: "Zip Code", type: "Location", purpose: "Where the participant is located", example: "Birmingham, AL area" },
+  { name: "Relationship Strength", type: "Rating", purpose: "1–5 star rating of engagement level", example: "★★★★☆" },
+  { name: "Program Year / Cohort", type: "Dropdown", purpose: "Which cohort or cycle this person belongs to", example: "Career Navigator Cohort 3 (FY25)" },
+  { name: "Income Before / After Program", type: "Numbers", purpose: "Track economic impact — income at entry vs. now", example: "$24,000 → $38,500" },
+  { name: "Assigned Staff", type: "People", purpose: "Which BC team member manages this relationship", example: "Wenica Woods" },
+  { name: "Interaction Notes", type: "Long Text", purpose: "Context, meeting notes, important details", example: "Industry: Admin/Disability" },
+  { name: "Next Follow-Up Date", type: "Date", purpose: "When you need to reach out next", example: "2025-07-15" },
+  { name: "Files / Documents", type: "File", purpose: "Resumes, agreements, certifications — anything attached", example: "Resume_2025.pdf" },
+];
+
+const statuses = [
+  { label: "Active", color: "#00c875", icon: "🟢", desc: "Currently engaged with Birmingham Corps — attending sessions, responding to outreach." },
+  { label: "Active - Enrolled", color: "#fdab3d", icon: "📝", desc: "Officially enrolled in a program and actively participating in their cohort." },
+  { label: "Completed - Alumni", color: "#66ccff", icon: "🎓", desc: "Finished their program successfully. Now part of the BC alumni network." },
+  { label: "Inactive - No Contact", color: "#757575", icon: "⚫", desc: "Haven't been able to reach this person. No recent communication." },
+  { label: "Deferred", color: "#ffcb00", icon: "⏳", desc: "Paused participation — planning to return in a future cohort or cycle." },
+  { label: "On Hold", color: "#fdab3d", icon: "⏸️", desc: "Temporarily paused due to personal circumstances. Staying connected." },
+  { label: "Withdrawn", color: "#bb3354", icon: "🚪", desc: "Left the program before completion. Record kept for future re-engagement." },
+  { label: "Alumni - Actively Engaged", color: "#175a63", icon: "🌟", desc: "A graduate who stays involved — mentoring, volunteering, or referring new participants." },
+];
+
+const realRecords = [
+  { name: "Aissatou Diallo", type: "Career Navigator Participant", status: "Active - Enrolled", statusColor: "#fdab3d", program: "Career Navigator", cohort: "—" },
+  { name: "Alexis Armer", type: "Career Navigator Participant", status: "Active - Enrolled", statusColor: "#fdab3d", program: "Career Navigator", cohort: "TN Cycle 4" },
+  { name: "Alisa Muhammad", type: "Career Navigator Participant", status: "Active", statusColor: "#00c875", program: "Career Navigator", cohort: "—", notes: "Industry: Admin/Disability" },
+  { name: "Akira Williams", type: "Current Participant", status: "Withdrawn", statusColor: "#bb3354", program: "Talent Bridge", cohort: "—" },
+  { name: "Ahronimus Johnson", type: "Career Navigator Participant", status: "Inactive - No Contact", statusColor: "#757575", program: "Career Navigator", cohort: "TN Cycle 2" },
+];
+
+const intakeFields = [
+  { field: "Name", required: true, desc: "Full name of the person or organization" },
+  { field: "Contact Type", required: true, desc: "Participant, Alumni, Employer, Community Partner, Funder, Donor, Vendor, Gov Agency, Media, Volunteer, Board Member, Staff, AmeriCorps, or Other" },
+  { field: "Organization or Program Name", required: false, desc: "Company, nonprofit, program, or cohort they belong to" },
+  { field: "Phone Number", required: false, desc: "Best phone number to reach them" },
+  { field: "Email Address", required: false, desc: "Primary email" },
+  { field: "City or Address", required: false, desc: "Where they're located" },
+  { field: "Department", required: true, desc: "Workforce and Employment Pathways, Job Placement, Financial Stability, Partnerships, Outreach, Leadership, or All Departments" },
+  { field: "Referred By", required: false, desc: "How this person first came to Birmingham Corps" },
+];
+
+const dailyHabits = [
+  { when: "Morning", emoji: "☀️", action: "Check your Follow-Up Dates", detail: "Filter the directory to today's date. See who needs a call, email, or check-in." },
+  { when: "After a Meeting", emoji: "📝", action: "Update the record immediately", detail: "Add Interaction Notes, update the Status if it changed, and set the next Follow-Up Date." },
+  { when: "New Contact", emoji: "➕", action: "Use the Intake Form", detail: "Don't create a record manually — submit through the CRM New Contact Intake Form so nothing is missed." },
+  { when: "Weekly", emoji: "📊", action: "Review your assigned records", detail: "Filter by Assigned Staff (you). Scan for stale follow-ups, missing info, or status updates needed." },
+];
+
+const TOTAL = 8;
+
+function Dots({ current, onNav }) {
+  return (
+    <div style={{ display: "flex", gap: 8, justifyContent: "center", padding: "16px 0" }}>
+      {Array.from({ length: TOTAL }).map((_, i) => (
+        <button key={i} onClick={() => onNav(i)} aria-label={"Slide " + (i + 1)} style={{
+          width: i === current ? 28 : 10, height: 10, borderRadius: 5, border: "none",
+          background: i === current ? TEAL : "#CBD5E1", cursor: "pointer", transition: "all 0.3s ease",
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function Shell({ children, n }) {
+  return (
+    <div style={{ minHeight: "100%", background: LIGHT, display: "flex", flexDirection: "column" }}>
+      {children}
+      <div style={{ padding: "8px 32px", fontSize: 11, color: "#94A3B8", textAlign: "right" }}>
+        Birmingham Corps CRM Training · {n} / {TOTAL}
+      </div>
+    </div>
+  );
+}
+
+function S0() {
+  return (
+    <Shell n={1}>
+      <div style={{
+        flex: 1, background: "linear-gradient(145deg, " + NAVY + " 0%, #2D4A6F 100%)",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        padding: "48px 32px", textAlign: "center", borderRadius: "0 0 32px 32px",
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🚀</div>
+        <h1 style={{ color: "#fff", fontSize: 30, fontWeight: 800, margin: 0, lineHeight: 1.2 }}>
+          Getting Started with<br />Monday.com
+        </h1>
+        <div style={{ width: 48, height: 3, background: TEAL, borderRadius: 2, margin: "20px auto" }} />
+        <p style={{ color: "#94B8DB", fontSize: 15, margin: 0, maxWidth: 380 }}>
+          A beginner's guide built from your actual<br /><strong style={{ color: "#fff" }}>Participants Professional Directory</strong>
+        </p>
+        <div style={{
+          marginTop: 32, display: "inline-flex", alignItems: "center", gap: 8,
+          background: "rgba(255,255,255,0.1)", borderRadius: 20, padding: "8px 20px", fontSize: 13, color: "#CBD5E1",
+        }}>
+          <span style={{ color: GOLD }}>⚡</span> 228 real records · 8 interactive slides
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+function S1() {
+  return (
+    <Shell n={2}>
+      <div style={{ padding: "28px 24px 0" }}>
+        <div style={{ fontSize: 12, color: TEAL, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Step 1</div>
+        <h2 style={{ fontSize: 24, color: INK, margin: "4px 0 6px", fontWeight: 800 }}>Your CRM Workspace</h2>
+        <p style={{ fontSize: 14, color: SLATE, margin: "0 0 20px", lineHeight: 1.5 }}>
+          The <strong>Birmingham Corps CRM</strong> workspace has these key boards. The <strong>Professional Directory</strong> is your main board.
+        </p>
+      </div>
+      <div style={{ padding: "0 24px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {boards.map((b, i) => (
+          <div key={i} style={{
+            background: b.main ? TEAL + "08" : "#fff", borderRadius: 14, padding: "16px 18px",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.06)", display: "flex", gap: 14, alignItems: "flex-start",
+            border: b.main ? "2px solid " + TEAL + "40" : "2px solid transparent",
+          }}>
+            <div style={{
+              fontSize: 24, width: 44, height: 44, borderRadius: 12, background: TEAL + "14",
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>{b.icon}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: INK }}>{b.name}</div>
+                {b.main && <span style={{ fontSize: 9, background: TEAL, color: "#fff", padding: "2px 6px", borderRadius: 4, fontWeight: 700 }}>MAIN</span>}
+              </div>
+              <div style={{ fontSize: 12, color: SLATE, marginTop: 3, lineHeight: 1.4 }}>{b.desc}</div>
+              <div style={{ marginTop: 6, fontSize: 11, color: TEAL, fontWeight: 600, background: TEAL + "10", display: "inline-block", padding: "2px 8px", borderRadius: 6 }}>{b.items} records</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Shell>
+  );
+}
+
+function S2() {
+  const [expanded, setExpanded] = useState(null);
+  return (
+    <Shell n={3}>
+      <div style={{ padding: "28px 24px 0" }}>
+        <div style={{ fontSize: 12, color: TEAL, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Step 2</div>
+        <h2 style={{ fontSize: 24, color: INK, margin: "4px 0 6px", fontWeight: 800 }}>Board Anatomy</h2>
+        <p style={{ fontSize: 14, color: SLATE, margin: "0 0 16px", lineHeight: 1.5 }}>
+          The <strong>Professional Directory</strong> has {directoryColumns.length} columns. Tap any to learn what it does.
+        </p>
+      </div>
+      <div style={{ padding: "0 24px 24px", display: "flex", flexDirection: "column", gap: 6 }}>
+        {directoryColumns.map((col, i) => {
+          const open = expanded === i;
+          return (
+            <button key={i} onClick={() => setExpanded(open ? null : i)} style={{
+              background: open ? TEAL + "0D" : "#fff",
+              border: open ? "1.5px solid " + TEAL + "40" : "1.5px solid #E2E8F0",
+              borderRadius: 12, padding: "12px 16px", cursor: "pointer", textAlign: "left",
+              transition: "all 0.2s ease", width: "100%",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 700, fontSize: 14, color: INK }}>{col.name}</span>
+                <span style={{ fontSize: 10, color: TEAL, background: TEAL + "18", padding: "2px 8px", borderRadius: 6, fontWeight: 600 }}>{col.type}</span>
+              </div>
+              {open && (
+                <div style={{ marginTop: 10, fontSize: 13, color: SLATE, lineHeight: 1.5 }}>
+                  <div>{col.purpose}</div>
+                  <div style={{ marginTop: 8, padding: "8px 12px", background: "#fff", borderRadius: 8, fontSize: 12, color: INK, fontFamily: "monospace" }}>
+                    Example: {col.example}
+                  </div>
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </Shell>
+  );
+}
+
+function S3() {
+  const [sel, setSel] = useState(null);
+  return (
+    <Shell n={4}>
+      <div style={{ padding: "28px 24px 0" }}>
+        <div style={{ fontSize: 12, color: TEAL, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Step 3</div>
+        <h2 style={{ fontSize: 24, color: INK, margin: "4px 0 6px", fontWeight: 800 }}>Participant Statuses</h2>
+        <p style={{ fontSize: 14, color: SLATE, margin: "0 0 16px", lineHeight: 1.5 }}>
+          Every record has a color-coded <strong>Status</strong>. Tap any to see what it means.
+        </p>
+      </div>
+      <div style={{ padding: "0 24px 24px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {statuses.map((s, i) => (
+            <button key={i} onClick={() => setSel(sel === i ? null : i)} style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10,
+              border: sel === i ? "2px solid " + s.color : "2px solid transparent", background: "#fff",
+              boxShadow: sel === i ? "0 0 0 3px " + s.color + "28" : "0 1px 3px rgba(0,0,0,0.06)",
+              cursor: "pointer", transition: "all 0.2s ease", fontSize: 13,
+            }}>
+              <div style={{ width: 12, height: 12, borderRadius: 3, background: s.color, flexShrink: 0 }} />
+              <span style={{ color: INK, fontWeight: 600 }}>{s.icon} {s.label}</span>
+            </button>
+          ))}
+        </div>
+        {sel !== null && (
+          <div style={{
+            marginTop: 16, padding: "16px 18px", background: "#fff", borderRadius: 14,
+            borderLeft: "4px solid " + statuses[sel].color, boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+          }}>
+            <div style={{ fontSize: 18, marginBottom: 6 }}>{statuses[sel].icon}</div>
+            <div style={{ fontWeight: 700, color: INK, fontSize: 16 }}>{statuses[sel].label}</div>
+            <div style={{ fontSize: 13, color: SLATE, marginTop: 6, lineHeight: 1.5 }}>{statuses[sel].desc}</div>
+          </div>
+        )}
+      </div>
+    </Shell>
+  );
+}
+
+function S4() {
+  const [row, setRow] = useState(0);
+  const r = realRecords[row];
+  const fields = [
+    ["Status", r.status, r.statusColor],
+    ["Contact Type", r.type, null],
+    ["Program", r.program, null],
+    ["Cohort", r.cohort, null],
+  ];
+  if (r.notes) fields.push(["Notes", r.notes, null]);
+  return (
+    <Shell n={5}>
+      <div style={{ padding: "28px 24px 0" }}>
+        <div style={{ fontSize: 12, color: TEAL, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Step 4</div>
+        <h2 style={{ fontSize: 24, color: INK, margin: "4px 0 6px", fontWeight: 800 }}>Reading a Real Record</h2>
+        <p style={{ fontSize: 14, color: SLATE, margin: "0 0 16px", lineHeight: 1.5 }}>
+          Tap any participant below to see how their data looks in the directory. These are actual records.
+        </p>
+      </div>
+      <div style={{ padding: "0 24px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {realRecords.map((rec, i) => (
+            <button key={i} onClick={() => setRow(i)} style={{
+              display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10,
+              border: row === i ? "2px solid " + TEAL : "2px solid transparent",
+              background: row === i ? TEAL + "08" : "#fff", cursor: "pointer", textAlign: "left",
+              width: "100%", boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            }}>
+              <div style={{ width: 8, height: 8, borderRadius: 2, background: rec.statusColor, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: INK }}>{rec.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ padding: "16px 24px 24px" }}>
+        <div style={{ background: "#fff", borderRadius: 14, padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.07)" }}>
+          <div style={{ fontWeight: 800, fontSize: 16, color: INK, marginBottom: 14 }}>{r.name}</div>
+          {fields.map(([label, val, badge], i) => (
+            <div key={i} style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "8px 0", borderBottom: i < fields.length - 1 ? "1px solid #F1F5F9" : "none", fontSize: 13,
+            }}>
+              <span style={{ color: SLATE, fontWeight: 500 }}>{label}</span>
+              {badge
+                ? <span style={{ background: badge, color: "#fff", padding: "3px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600 }}>{val}</span>
+                : <span style={{ color: INK, fontWeight: 600, textAlign: "right", maxWidth: "60%" }}>{val}</span>
+              }
+            </div>
+          ))}
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+function S5() {
+  const [step, setStep] = useState(0);
+  return (
+    <Shell n={6}>
+      <div style={{ padding: "28px 24px 0" }}>
+        <div style={{ fontSize: 12, color: TEAL, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Step 5</div>
+        <h2 style={{ fontSize: 24, color: INK, margin: "4px 0 6px", fontWeight: 800 }}>The Intake Form</h2>
+        <p style={{ fontSize: 14, color: SLATE, margin: "0 0 6px", lineHeight: 1.5 }}>
+          The <strong>CRM New Contact Intake Form</strong> is how new people enter the system. Tap through each field:
+        </p>
+        <div style={{ fontSize: 12, color: TEAL, fontWeight: 600, marginBottom: 16 }}>Field {step + 1} of {intakeFields.length}</div>
+      </div>
+      <div style={{ padding: "0 24px" }}>
+        <div style={{ background: "#fff", borderRadius: 16, padding: "24px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", minHeight: 130 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8, background: NAVY, color: "#fff",
+              display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14,
+            }}>{step + 1}</div>
+            <div style={{ fontWeight: 800, fontSize: 18, color: INK }}>{intakeFields[step].field}</div>
+            {intakeFields[step].required && (
+              <span style={{ fontSize: 10, background: "#FEE2E2", color: "#DC2626", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>REQUIRED</span>
+            )}
+          </div>
+          <p style={{ fontSize: 14, color: SLATE, lineHeight: 1.6, margin: 0 }}>{intakeFields[step].desc}</p>
+        </div>
+        <div style={{ marginTop: 12, display: "flex", gap: 4 }}>
+          {intakeFields.map((_, i) => (
+            <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= step ? TEAL : "#E2E8F0", transition: "background 0.3s ease" }} />
+          ))}
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 10, padding: "20px 24px 24px", justifyContent: "center" }}>
+        <button onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0} style={{
+          padding: "10px 24px", borderRadius: 10, border: "1.5px solid #E2E8F0", background: "#fff",
+          color: step === 0 ? "#CBD5E1" : INK, fontWeight: 600, fontSize: 14, cursor: step === 0 ? "default" : "pointer",
+        }}>← Back</button>
+        <button onClick={() => setStep(Math.min(intakeFields.length - 1, step + 1))} disabled={step === intakeFields.length - 1} style={{
+          padding: "10px 24px", borderRadius: 10, border: "none",
+          background: step === intakeFields.length - 1 ? "#CBD5E1" : TEAL,
+          color: "#fff", fontWeight: 600, fontSize: 14, cursor: step === intakeFields.length - 1 ? "default" : "pointer",
+        }}>Next →</button>
+      </div>
+    </Shell>
+  );
+}
+
+function S6() {
+  return (
+    <Shell n={7}>
+      <div style={{ padding: "28px 24px 0" }}>
+        <div style={{ fontSize: 12, color: TEAL, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Step 6</div>
+        <h2 style={{ fontSize: 24, color: INK, margin: "4px 0 6px", fontWeight: 800 }}>Daily CRM Habits</h2>
+        <p style={{ fontSize: 14, color: SLATE, margin: "0 0 16px", lineHeight: 1.5 }}>
+          The directory only works if you keep it fresh. Here's what good daily usage looks like:
+        </p>
+      </div>
+      <div style={{ padding: "0 24px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {dailyHabits.map((h, i) => (
+          <div key={i} style={{ background: "#fff", borderRadius: 14, padding: "18px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <span style={{ fontSize: 22 }}>{h.emoji}</span>
+              <div>
+                <div style={{ fontSize: 11, color: TEAL, fontWeight: 700, textTransform: "uppercase" }}>{h.when}</div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: INK }}>{h.action}</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 13, color: SLATE, lineHeight: 1.5, paddingLeft: 34 }}>{h.detail}</div>
+          </div>
+        ))}
+      </div>
+    </Shell>
+  );
+}
+
+function S7() {
+  return (
+    <Shell n={8}>
+      <div style={{
+        flex: 1, background: "linear-gradient(145deg, " + NAVY + " 0%, #2D4A6F 100%)",
+        borderRadius: "0 0 32px 32px", padding: "36px 24px",
+        display: "flex", flexDirection: "column", justifyContent: "center",
+      }}>
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
+          <h2 style={{ fontSize: 26, color: "#fff", fontWeight: 800, margin: 0 }}>Quick Reference</h2>
+          <p style={{ color: "#94B8DB", fontSize: 14, margin: "8px 0 0" }}>Keep these bookmarked as you get started</p>
+        </div>
+        {[
+          { emoji: "📋", label: "Main CRM Board", value: "Participants Professional Directory" },
+          { emoji: "🤝", label: "Partnerships Board", value: "Partners & Funders CRM" },
+          { emoji: "📥", label: "Add New Contacts", value: "CRM New Contact Intake Form" },
+          { emoji: "🔑", label: "Key Column", value: "Status (track every participant's journey)" },
+          { emoji: "📅", label: "Never Miss a Beat", value: "Next Follow-Up Date" },
+          { emoji: "👤", label: "Board Owner", value: "Wenica Woods" },
+        ].map((item, i) => (
+          <div key={i} style={{
+            display: "flex", alignItems: "center", gap: 14, padding: "12px 16px",
+            background: "rgba(255,255,255,0.08)", borderRadius: 12, marginBottom: 8,
+          }}>
+            <span style={{ fontSize: 20 }}>{item.emoji}</span>
+            <div>
+              <div style={{ fontSize: 11, color: "#94B8DB", fontWeight: 600 }}>{item.label}</div>
+              <div style={{ fontSize: 14, color: "#fff", fontWeight: 700 }}>{item.value}</div>
+            </div>
+          </div>
+        ))}
+        <div style={{
+          textAlign: "center", marginTop: 24, padding: "12px 20px",
+          background: TEAL, borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700,
+        }}>
+          You're ready — go explore your directory!
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+const slides = [S0, S1, S2, S3, S4, S5, S6, S7];
+
+function App() {
+  const [cur, setCur] = useState(0);
+  const [touch, setTouch] = useState(null);
+  const [anim, setAnim] = useState("none");
+
+  const go = (dir) => {
+    const next = dir === "next" ? Math.min(cur + 1, TOTAL - 1) : Math.max(cur - 1, 0);
+    if (next === cur) return;
+    setAnim(dir === "next" ? "left" : "right");
+    setTimeout(() => { setCur(next); setAnim("none"); }, 200);
+  };
+
+  const Slide = slides[cur];
+
+  return (
+    <div
+      style={{
+        width: "100%", maxWidth: 480, margin: "0 auto", minHeight: "100vh",
+        background: LIGHT, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        overflow: "hidden", position: "relative",
+      }}
+      onTouchStart={e => setTouch(e.touches[0].clientX)}
+      onTouchEnd={e => {
+        if (touch === null) return;
+        const d = touch - e.changedTouches[0].clientX;
+        if (Math.abs(d) > 50) go(d > 0 ? "next" : "prev");
+        setTouch(null);
+      }}
+    >
+      <div style={{
+        opacity: anim !== "none" ? 0 : 1,
+        transform: anim === "left" ? "translateX(-30px)" : anim === "right" ? "translateX(30px)" : "none",
+        transition: "all 0.2s ease",
+      }}>
+        <Slide />
+      </div>
+      <div style={{ padding: "0 24px 8px" }}>
+        <Dots current={cur} onNav={setCur} />
+      </div>
+      <div style={{ display: "flex", gap: 12, padding: "0 24px 24px", justifyContent: "space-between" }}>
+        <button onClick={() => go("prev")} disabled={cur === 0} style={{
+          flex: 1, padding: "14px", borderRadius: 12, border: "1.5px solid #E2E8F0", background: "#fff",
+          color: cur === 0 ? "#CBD5E1" : INK, fontWeight: 700, fontSize: 15, cursor: cur === 0 ? "default" : "pointer",
+        }}>← Previous</button>
+        <button onClick={() => go("next")} disabled={cur === TOTAL - 1} style={{
+          flex: 1, padding: "14px", borderRadius: 12, border: "none",
+          background: cur === TOTAL - 1 ? "#CBD5E1" : TEAL, color: "#fff", fontWeight: 700, fontSize: 15,
+          cursor: cur === TOTAL - 1 ? "default" : "pointer",
+        }}>Next →</button>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
