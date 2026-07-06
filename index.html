@@ -349,6 +349,16 @@
         let allData = { participants: [], partners: [], marketing: [] };
         let chartInstances = {};
 
+        // Map raw Monday.com status values to clean display categories
+        function getStatusLabel(raw) {
+            if (!raw || !raw.trim()) return 'Not Set';
+            const r = raw.trim().toLowerCase();
+            if (r.includes('alumni') || r.includes('completed')) return 'Alumni';
+            if (r.includes('active') || r.includes('enrolled')) return 'Active';
+            if (r.includes('withdrawn') || r.includes('no contact') || r.includes('inactive')) return 'Did Not Complete Program';
+            return raw; // keep any other values as-is
+        }
+
         async function fetchBoard(board) {
             const res = await fetch(`${API_BASE}?board=${board}`);
             if (!res.ok) throw new Error(`Failed to load ${board} data (${res.status})`);
@@ -404,8 +414,11 @@
         function renderParticipantStats() {
             const data = allData.participants;
             const total = data.length;
-            const active = data.filter(p => p.color_mm28tqgd === 'Active').length;
-            const inactive = data.filter(p => p.color_mm28tqgd === 'Inactive').length;
+            const active = data.filter(p => getStatusLabel(p.color_mm28tqgd) === 'Active').length;
+            const inactive = data.filter(p => {
+                const label = getStatusLabel(p.color_mm28tqgd);
+                return label === 'Alumni' || label === 'Did Not Complete Program';
+            }).length;
             document.getElementById('participantsStatsContainer').innerHTML = `
                 <div class="stat-card info"><div class="stat-value">${total}</div><div class="stat-label">Total Participants</div></div>
                 <div class="stat-card success"><div class="stat-value">${active}</div><div class="stat-label">Active Participants</div></div>
@@ -545,16 +558,6 @@
 
         function renderParticipantBreakdown() {
             const data = allData.participants;
-
-            // Map raw Monday.com status values to clean display labels
-            function getStatusLabel(raw) {
-                if (!raw || !raw.trim()) return 'Not Set';
-                const r = raw.trim().toLowerCase();
-                if (r.includes('alumni') || r.includes('completed')) return 'Alumni';
-                if (r.includes('active') || r.includes('enrolled')) return 'Active';
-                if (r.includes('withdrawn') || r.includes('no contact') || r.includes('inactive')) return 'Did Not Complete Program';
-                return raw; // keep any other values as-is
-            }
 
             const statusCounts = {}, programCounts = {};
             data.forEach(p => {
@@ -799,8 +802,8 @@
                     <h4>👥 Participant Metrics</h4>
                     <ul class="breakdown-list">
                         <li class="breakdown-item"><span>Total Participants</span><span>${p.length}</span></li>
-                        <li class="breakdown-item"><span>Active</span><span>${p.filter(x => x.color_mm28tqgd === 'Active').length}</span></li>
-                        <li class="breakdown-item"><span>Inactive / Alumni</span><span>${p.filter(x => x.color_mm28tqgd === 'Inactive').length}</span></li>
+                        <li class="breakdown-item"><span>Active</span><span>${p.filter(x => getStatusLabel(x.color_mm28tqgd) === 'Active').length}</span></li>
+                        <li class="breakdown-item"><span>Inactive / Alumni</span><span>${p.filter(x => ['Alumni','Did Not Complete Program'].includes(getStatusLabel(x.color_mm28tqgd))).length}</span></li>
                     </ul>
                 </div>
                 <div class="breakdown-card" style="border-color:var(--success)">

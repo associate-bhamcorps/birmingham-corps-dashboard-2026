@@ -1,7 +1,5 @@
-// monday-data.js — Live data proxy with Netlify Blobs cache layer
-// - Serves cached data (refreshed every 30 min by cache-refresh.js)
-// - Falls back to live Monday.com API if cache is empty or stale
-// - Add ?live=1 to bypass cache and force fresh API call
+// monday-data.js — Live data proxy for the Monday.com boards
+// - Fetches fresh data from Monday.com on every request
 // - Add ?board=participants|partners|marketing
 
 const https = require('https');
@@ -16,8 +14,6 @@ const BOARD_IDS = {
   partners: 18407898758,
   marketing: 18411541832
 };
-
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 function httpsPost(url, data, headers) {
   return new Promise((resolve, reject) => {
@@ -89,7 +85,6 @@ exports.handler = async (event) => {
 
   const params = event.queryStringParameters || {};
   const board = params.board;
-  const forceLive = params.live === '1';
   const boardId = BOARD_IDS[board];
 
   if (!boardId) {
@@ -109,61 +104,13 @@ exports.handler = async (event) => {
     };
   }
 
-  // ── Try Netlify Blobs cache (Feature 5) ──────────────────────────────────
-  if (!forceLive) {
-    try {
-      const { getStore } = require('@netlify/blobs');
-      const store = getStore('monday-cache');
-      const result = await store.getWithMetadata(board);
-
-      if (result && result.metadata) {
-        const age = Date.now() - (result.metadata.cachedAt || 0);
-        if (age < CACHE_TTL_MS) {
-          console.log(`Cache HIT for ${board} (age: ${Math.round(age / 1000)}s)`);
-          return {
-            statusCode: 200,
-            headers: {
-              ...CORS,
-              'X-Cache': 'HIT',
-              'X-Cache-Age': String(Math.round(age / 1000)),
-              'X-Cache-Count': String(result.metadata.count || '?')
-            },
-            body: result.data
-          };
-        } else {
-          console.log(`Cache STALE for ${board} (age: ${Math.round(age / 1000)}s) — fetching live`);
-        }
-      } else {
-        console.log(`Cache MISS for ${board} — fetching live`);
-      }
-    } catch (cacheErr) {
-      // Cache unavailable — not fatal, fall through to live API
-      console.warn(`Cache unavailable for ${board}:`, cacheErr.message);
-    }
-  }
-
-  // ── Fetch live from Monday.com ────────────────────────────────────────────
   try {
     const items = await fetchFromMonday(boardId, apiKey);
-
-    // Store in cache for next request
-    try {
-      const { getStore } = require('@netlify/blobs');
-      const store = getStore('monday-cache');
-      await store.set(board, JSON.stringify(items), {
-        metadata: { cachedAt: Date.now(), count: items.length, board }
-      });
-      console.log(`Cached ${items.length} ${board} items`);
-    } catch (cacheWriteErr) {
-      console.warn('Cache write failed (non-fatal):', cacheWriteErr.message);
-    }
-
     return {
       statusCode: 200,
-      headers: { ...CORS, 'X-Cache': 'MISS' },
+      headers: CORS,
       body: JSON.stringify(items)
     };
-
   } catch (err) {
     console.error('Monday.com fetch error:', err.message);
     return {

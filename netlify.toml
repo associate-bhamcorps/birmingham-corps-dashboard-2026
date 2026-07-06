@@ -8,10 +8,6 @@
 [functions]
   node_bundler = "esbuild"
 
-# ── Feature 3: Scheduled cache refresh (runs every 30 min) ──────────────────
-[functions."cache-refresh"]
-  schedule = "*/30 * * * *"
-
 # ── Feature 9: Deploy Previews — staging environment ────────────────────────
 [context.production]
   environment = { NODE_ENV = "production" }
