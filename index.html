@@ -628,26 +628,25 @@
                 const amtDisplay = amt > 0 ? '$' + amt.toLocaleString() : '—';
                 return `<tr>
                     <td><strong>${p.name}</strong></td>
-                    <td>${p.dropdown_mm28jwg4 || '-'}</td>
+                    <td>${p.dropdown_mm45b9cy || '-'}</td>
                     <td>${amtDisplay}</td>
                     <td>${p.color_mm28m1nh || '-'}</td>
                 </tr>`;
             }).join('');
 
             // Program & Placement Partners — show only genuine programming partners, deduplicated
-            // Exclude any partner tagged as Funder or Donor (they belong in the contributions table above)
-            // Include only partners with a primary programming role: Employer, Community Partner, AmeriCorps Partner, Facilitator
-            const financialTags = ['funder','donor'];
-            const programTags   = ['employer','community partner','americorps partner','facilitor'];
+            // Exclude any partner tagged as Funder (they belong in the contributions table above)
+            // Include only partners with a primary programming role: Employer or Program Partner
+            const financialTags = ['funder'];
+            const programTags   = ['program partner','employer'];
 
-            // Label map — convert raw Monday.com contact types to plain English
+            // Label map — convert raw Monday.com Partner Type values to plain English
             function partnerRoleLabel(raw) {
                 if (!raw) return '-';
                 const t = raw.toLowerCase();
-                if (t.includes('americorps partner')) return 'AmeriCorps Host Site';
-                if (t.includes('employer'))           return 'Employer Partner';
-                if (t.includes('community partner'))  return 'Community Partner';
-                if (t.includes('facilitor'))          return 'Program Facilitator';
+                if (t.includes('americorps'))       return 'AmeriCorps Host Site';
+                if (t.includes('employer'))         return 'Employer Partner';
+                if (t.includes('program partner'))  return 'Program Partner';
                 return raw;
             }
 
@@ -663,7 +662,7 @@
 
             // Filter: must have a program role AND must not have any financial tag
             const filtered = data.filter(p => {
-                const types = (p.dropdown_mm28jwg4 || '').toLowerCase().split(',').map(t => t.trim());
+                const types = (p.dropdown_mm45b9cy || '').toLowerCase().split(',').map(t => t.trim());
                 const hasFinancial = types.some(t => financialTags.some(f => t.includes(f)));
                 const hasProgram   = types.some(t => programTags.some(r => t.includes(r)));
                 return hasProgram && !hasFinancial;
@@ -685,7 +684,7 @@
 
             document.getElementById('programTableBody').innerHTML = programPartners.length
                 ? programPartners.map(p => {
-                    const role   = partnerRoleLabel(p.dropdown_mm28jwg4);
+                    const role   = partnerRoleLabel(p.dropdown_mm45b9cy);
                     const status = stageLabel(p.color_mm28m1nh);
                     const contact = p.text_mm2817s2 || '-';
                     const badge  = status === 'Active'
@@ -709,7 +708,7 @@
             const data = allData.partners;
             const contactCounts = {}, stageCounts = {};
             data.forEach(p => {
-                const t = p.dropdown_mm28jwg4 || 'Unassigned';
+                const t = p.dropdown_mm45b9cy || 'Unassigned';
                 contactCounts[t] = (contactCounts[t] || 0) + 1;
                 const s = p.color_mm28m1nh || 'Unknown';
                 stageCounts[s] = (stageCounts[s] || 0) + 1;
