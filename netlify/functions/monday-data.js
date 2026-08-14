@@ -10,10 +10,10 @@ const CORS = {
 };
 
 const BOARD_IDS = {
-  participants: 18407896987,
-  partners:     18407898758,
-  funders:      18407898758,  // same CRM board — JS filters by funder type
-  marketing:    18411541832
+  participants: 18407896987,  // Participants Professional Directory
+  partners:     18426299137,  // Partners board
+  funders:      18426299125,  // Funders board
+  marketing:    18411541832   // Marketing Performance
 };
 
 function httpsPost(url, data, headers) {

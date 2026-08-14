@@ -395,25 +395,33 @@
 
         async function initDashboard() {
             setSyncStatus('loading');
-            try {
-                const [participants, partners, funders, marketing] = await Promise.all([
-                    fetchBoard('participants'),
-                    fetchBoard('partners'),
-                    fetchBoard('funders'),
-                    fetchBoard('marketing')
-                ]);
-                allData.participants = participants;
-                allData.partners = partners;
-                allData.funders = funders;
-                allData.marketing = marketing;
-                updateAllSections();
-                setSyncStatus('synced');
-            } catch (err) {
+            const [r1, r2, r3, r4] = await Promise.allSettled([
+                fetchBoard('participants'),
+                fetchBoard('partners'),
+                fetchBoard('funders'),
+                fetchBoard('marketing')
+            ]);
+            allData.participants = r1.status === 'fulfilled' ? r1.value : [];
+            allData.partners     = r2.status === 'fulfilled' ? r2.value : [];
+            allData.funders      = r3.status === 'fulfilled' ? r3.value : [];
+            allData.marketing    = r4.status === 'fulfilled' ? r4.value : [];
+
+            const failed = [
+                r1.status === 'rejected' ? 'participants' : null,
+                r2.status === 'rejected' ? 'partners' : null,
+                r3.status === 'rejected' ? 'funders' : null,
+                r4.status === 'rejected' ? 'marketing' : null,
+            ].filter(Boolean);
+
+            if (failed.length) {
+                const banner = document.getElementById('errorBanner');
+                banner.style.display = 'block';
+                banner.textContent = `⚠️ Could not load: ${failed.join(', ')} — other tabs still show live data.`;
                 setSyncStatus('error');
-                document.getElementById('errorBanner').style.display = 'block';
-                document.getElementById('errorBanner').textContent = '⚠️ Could not load data: ' + err.message;
-                console.error(err);
+            } else {
+                setSyncStatus('synced');
             }
+            updateAllSections();
         }
 
         function setSyncStatus(state) {
