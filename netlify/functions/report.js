@@ -6,8 +6,9 @@ const https = require('https');
 
 const BOARD_IDS = {
   participants: 18407896987,
-  partners: 18407898758,
-  marketing: 18411541832
+  partners:     18426299137,  // Partners CRM
+  funders:      18426299125,  // Funders CRM
+  marketing:    18411541832
 };
 
 function httpsPost(url, data, headers) {
@@ -25,29 +26,22 @@ function httpsPost(url, data, headers) {
   });
 }
 
-async function getData(boardName, apiKey) {
-  // Try cache first
-  try {
-    const { getStore } = require('@netlify/blobs');
-    const store = getStore('monday-cache');
-    const result = await store.getWithMetadata(boardName);
-    if (result && result.metadata) {
-      const age = Date.now() - (result.metadata.cachedAt || 0);
-      if (age < 3600000) return JSON.parse(result.data);
-    }
-  } catch (_) {}
-
-  // Fall back to live API
+async function fetchBoard(boardName, apiKey) {
   const boardId = BOARD_IDS[boardName];
   const query = `{ boards(ids: [${boardId}]) { items_page(limit: 500) { items { id name column_values { id type text value } } } } }`;
   const json = await httpsPost('https://api.monday.com/v2', { query }, {
     'Content-Type': 'application/json', 'Authorization': apiKey, 'API-Version': '2024-01'
   });
+  if (json.errors) throw new Error('Monday.com error: ' + JSON.stringify(json.errors));
   if (!json.data?.boards?.[0]) throw new Error('No data for ' + boardName);
   return json.data.boards[0].items_page.items.map(item => {
     const rec = { id: item.id, name: item.name };
     item.column_values.forEach(col => {
-      if (col.id !== 'phone_mm28k3k7' && col.id !== 'email_mm28c8fj') rec[col.id] = col.text || '';
+      if (col.id !== 'phone_mm28k3k7' && col.id !== 'email_mm28c8fj' &&
+          col.id !== 'phone_mm654hnc' && col.id !== 'email_mm65z62w' &&
+          col.id !== 'phone_mm65np2d' && col.id !== 'email_mm651qqs') {
+        rec[col.id] = col.text || '';
+      }
     });
     return rec;
   });
@@ -62,21 +56,28 @@ exports.handler = async (event) => {
   const monthName = params.month || now.toLocaleString('en-US', { month: 'long', timeZone: 'America/Chicago' });
   const year = params.year || now.getFullYear();
 
-  let participants, partners, marketing;
+  let participants, partners, funders, marketing;
   try {
-    [participants, partners, marketing] = await Promise.all([
-      getData('participants', apiKey),
-      getData('partners', apiKey),
-      getData('marketing', apiKey)
+    [participants, partners, funders, marketing] = await Promise.all([
+      fetchBoard('participants', apiKey),
+      fetchBoard('partners', apiKey),
+      fetchBoard('funders', apiKey),
+      fetchBoard('marketing', apiKey)
     ]);
   } catch (err) {
     return { statusCode: 500, body: `Error loading data: ${err.message}` };
   }
 
-  // Compute metrics
+  // Participant metrics
   const totalParticipants = participants.length;
-  const activeParticipants = participants.filter(p => p.color_mm28tqgd === 'Active').length;
-  const inactiveParticipants = participants.filter(p => p.color_mm28tqgd === 'Inactive').length;
+  const activeParticipants = participants.filter(p => {
+    const s = (p.color_mm28tqgd || '').toLowerCase();
+    return s.includes('active') || s.includes('enrolled');
+  }).length;
+  const alumniParticipants = participants.filter(p => {
+    const s = (p.color_mm28tqgd || '').toLowerCase();
+    return s.includes('alumni') || s.includes('completed');
+  }).length;
 
   const programCounts = {};
   participants.forEach(p => {
@@ -84,20 +85,30 @@ exports.handler = async (event) => {
     programCounts[pr] = (programCounts[pr] || 0) + 1;
   });
 
+  // Partner metrics (Partners CRM — program/employer partners)
   const totalPartners = partners.length;
-  const totalContributions = partners.reduce((s, p) => s + (parseFloat(p.numeric_mm2886n2) || 0), 0);
-  const totalSlots = partners.reduce((s, p) => s + (parseFloat(p.numeric_mm28kjd9) || 0), 0);
-
+  const activePartners = partners.filter(p => {
+    const s = (p.color_mm65tnts || '').toLowerCase();
+    return s.includes('current');
+  }).length;
   const topPartners = [...partners]
-    .sort((a, b) => (parseFloat(b.numeric_mm2886n2) || 0) - (parseFloat(a.numeric_mm2886n2) || 0))
+    .sort((a, b) => (parseFloat(b.numeric_mm65xnm6) || 0) - (parseFloat(a.numeric_mm65xnm6) || 0))
     .slice(0, 5);
 
-  const totalCampaigns = marketing.length;
-  const avgCTR = marketing.length > 0
-    ? (marketing.reduce((s, m) => s + (parseFloat(m.numeric_mm31cfpz) || 0), 0) / marketing.length).toFixed(2)
-    : '0';
-  const totalOpens = marketing.reduce((s, m) => s + (parseFloat(m.numeric_mm31zz9j) || 0), 0);
+  // Funder metrics (Funders CRM)
+  const isAmeriCorps = f => (f.dropdown_mm658e0s || '').toLowerCase().includes('americorps');
+  const nonAmeriCorpsFunders = funders.filter(f => !isAmeriCorps(f));
+  const totalFunders = funders.length;
+  const totalRaised = nonAmeriCorpsFunders.reduce((s, f) => s + (parseFloat(f.numeric_mm65vv1m) || 0), 0);
+  const topFunders = [...nonAmeriCorpsFunders]
+    .sort((a, b) => (parseFloat(b.numeric_mm65vv1m) || 0) - (parseFloat(a.numeric_mm65vv1m) || 0))
+    .slice(0, 5);
 
+  // Marketing metrics
+  const totalCampaigns = marketing.length;
+  const totalNewsletterSent = marketing.reduce((s, m) => s + (parseFloat(m.numeric_mm6557x3) || 0), 0);
+
+  // HTML rows
   const programRows = Object.entries(programCounts)
     .sort(([,a],[,b]) => b - a)
     .map(([name, count]) => `<tr><td>${name}</td><td>${count}</td><td>${((count/totalParticipants)*100).toFixed(1)}%</td></tr>`)
@@ -106,17 +117,16 @@ exports.handler = async (event) => {
   const partnerRows = topPartners.map(p => `
     <tr>
       <td>${p.name}</td>
-      <td>$${parseFloat(p.numeric_mm2886n2 || 0).toLocaleString()}</td>
-      <td>${parseFloat(p.numeric_mm28kjd9 || 0)}</td>
-      <td>${p.color_mm28m1nh || '—'}</td>
+      <td>${p.dropdown_mm651r0a || '—'}</td>
+      <td>$${parseFloat(p.numeric_mm65xnm6 || 0).toLocaleString()}</td>
+      <td>${p.color_mm65tnts || '—'}</td>
     </tr>`).join('');
 
-  const marketingRows = marketing.map(m => `
+  const funderRows = topFunders.map(f => `
     <tr>
-      <td>${m.name}</td>
-      <td>${m.dropdown_mm31wyzn || '—'}</td>
-      <td>${parseFloat(m.numeric_mm31cfpz || 0).toFixed(2)}%</td>
-      <td>${parseInt(m.numeric_mm31zz9j || 0).toLocaleString()}</td>
+      <td>${f.name}</td>
+      <td>$${parseFloat(f.numeric_mm65vv1m || 0).toLocaleString()}</td>
+      <td>${f.color_mm65ah3h || '—'}</td>
     </tr>`).join('');
 
   const generatedAt = new Date().toLocaleString('en-US', { timeZone: 'America/Chicago', dateStyle: 'full', timeStyle: 'short' });
@@ -133,11 +143,8 @@ exports.handler = async (event) => {
 
   .report-header {
     background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
-    color: white;
-    padding: 40px 60px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    color: white; padding: 40px 60px;
+    display: flex; justify-content: space-between; align-items: center;
     border-bottom: 6px solid #e74c3c;
   }
   .header-left h1 { font-size: 28px; font-weight: 900; letter-spacing: -0.5px; }
@@ -147,45 +154,31 @@ exports.handler = async (event) => {
   .header-right .generated { font-size: 11px; opacity: 0.6; margin-top: 4px; }
 
   .no-print {
-    background: #e74c3c;
-    color: white;
-    padding: 12px 24px;
-    text-align: center;
-    font-size: 14px;
-    font-weight: 600;
+    background: #e74c3c; color: white;
+    padding: 12px 24px; text-align: center; font-size: 14px; font-weight: 600;
   }
   .no-print button {
-    background: white;
-    color: #e74c3c;
-    border: none;
-    padding: 8px 20px;
-    border-radius: 6px;
-    font-weight: 700;
-    cursor: pointer;
-    margin-left: 16px;
-    font-size: 14px;
+    background: white; color: #e74c3c; border: none;
+    padding: 8px 20px; border-radius: 6px; font-weight: 700;
+    cursor: pointer; margin-left: 16px; font-size: 14px;
   }
 
   .content { max-width: 1000px; margin: 0 auto; padding: 40px 30px; }
-
   .section { background: white; border-radius: 10px; padding: 30px; margin-bottom: 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
   .section-title {
     font-size: 18px; font-weight: 700; color: #2c3e50;
     margin-bottom: 20px; padding-bottom: 12px;
     border-bottom: 3px solid #e74c3c;
-    display: flex; align-items: center; gap: 10px;
   }
 
   .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-  .kpi-card {
-    text-align: center; padding: 24px 16px; border-radius: 10px; color: white;
-  }
-  .kpi-card.blue  { background: linear-gradient(135deg, #3498db, #2980b9); }
-  .kpi-card.green { background: linear-gradient(135deg, #27ae60, #229954); }
-  .kpi-card.red   { background: linear-gradient(135deg, #e74c3c, #c0392b); }
-  .kpi-card.purple{ background: linear-gradient(135deg, #9b59b6, #8e44ad); }
-  .kpi-card.orange{ background: linear-gradient(135deg, #f39c12, #d68910); }
-  .kpi-card.teal  { background: linear-gradient(135deg, #16a085, #1abc9c); }
+  .kpi-card { text-align: center; padding: 24px 16px; border-radius: 10px; color: white; }
+  .kpi-card.blue   { background: linear-gradient(135deg, #3498db, #2980b9); }
+  .kpi-card.green  { background: linear-gradient(135deg, #27ae60, #229954); }
+  .kpi-card.red    { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+  .kpi-card.purple { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+  .kpi-card.orange { background: linear-gradient(135deg, #f39c12, #d68910); }
+  .kpi-card.teal   { background: linear-gradient(135deg, #16a085, #1abc9c); }
   .kpi-value { font-size: 38px; font-weight: 900; }
   .kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; margin-top: 6px; }
 
@@ -237,10 +230,10 @@ exports.handler = async (event) => {
     <div class="kpi-grid">
       <div class="kpi-card blue"><div class="kpi-value">${totalParticipants}</div><div class="kpi-label">Total Participants</div></div>
       <div class="kpi-card green"><div class="kpi-value">${activeParticipants}</div><div class="kpi-label">Active Participants</div></div>
-      <div class="kpi-card red"><div class="kpi-value">${inactiveParticipants}</div><div class="kpi-label">Alumni / Inactive</div></div>
-      <div class="kpi-card purple"><div class="kpi-value">${totalPartners}</div><div class="kpi-label">Total Partners</div></div>
-      <div class="kpi-card orange"><div class="kpi-value">$${(totalContributions/1000).toFixed(0)}K</div><div class="kpi-label">Total Contributions</div></div>
-      <div class="kpi-card teal"><div class="kpi-value">${totalCampaigns}</div><div class="kpi-label">Active Campaigns</div></div>
+      <div class="kpi-card red"><div class="kpi-value">${alumniParticipants}</div><div class="kpi-label">Alumni / Completed</div></div>
+      <div class="kpi-card purple"><div class="kpi-value">${totalPartners}</div><div class="kpi-label">Program Partners</div></div>
+      <div class="kpi-card orange"><div class="kpi-value">$${(totalRaised/1000).toFixed(0)}K</div><div class="kpi-label">Funds Raised (ex. AmeriCorps)</div></div>
+      <div class="kpi-card teal"><div class="kpi-value">${totalFunders}</div><div class="kpi-label">Total Funders</div></div>
     </div>
   </div>
 
@@ -249,54 +242,55 @@ exports.handler = async (event) => {
     <div class="section-title">👥 Participant Metrics</div>
     <table>
       <thead><tr><th>Program / Category</th><th>Participants</th><th>% of Total</th></tr></thead>
-      <tbody>${programRows}</tbody>
+      <tbody>${programRows || '<tr><td colspan="3" style="color:#bdc3c7;text-align:center;">No program data</td></tr>'}</tbody>
     </table>
   </div>
 
-  <!-- PARTNERSHIP & DONOR METRICS -->
+  <!-- PARTNERS -->
   <div class="section">
-    <div class="section-title">🤝 Top Partners & Contributions</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;">
+    <div class="section-title">🤝 Program Partners (Top 5)</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px;">
       <div style="background:#f0faf4;padding:18px;border-radius:8px;text-align:center;">
         <div style="font-size:28px;font-weight:900;color:#27ae60;">${totalPartners}</div>
         <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Partners</div>
       </div>
-      <div style="background:#fef9f0;padding:18px;border-radius:8px;text-align:center;">
-        <div style="font-size:28px;font-weight:900;color:#f39c12;">$${(totalContributions/1000).toFixed(0)}K</div>
-        <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Contributions</div>
-      </div>
       <div style="background:#f0f4fe;padding:18px;border-radius:8px;text-align:center;">
-        <div style="font-size:28px;font-weight:900;color:#3498db;">${totalSlots}</div>
-        <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Available Placements</div>
+        <div style="font-size:28px;font-weight:900;color:#3498db;">${activePartners}</div>
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Current Partners</div>
       </div>
     </div>
     <table>
-      <thead><tr><th>Partner Name</th><th>Contribution</th><th>Job Slots</th><th>Relationship Stage</th></tr></thead>
-      <tbody>${partnerRows}</tbody>
+      <thead><tr><th>Partner Name</th><th>Type</th><th>Contract Amount</th><th>Relationship Stage</th></tr></thead>
+      <tbody>${partnerRows || '<tr><td colspan="4" style="color:#bdc3c7;text-align:center;">No partner data</td></tr>'}</tbody>
     </table>
   </div>
 
-  <!-- MARKETING PERFORMANCE -->
+  <!-- FUNDERS -->
   <div class="section">
-    <div class="section-title">📢 Marketing Performance</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;">
-      <div style="background:#fdf0f0;padding:18px;border-radius:8px;text-align:center;">
-        <div style="font-size:28px;font-weight:900;color:#e74c3c;">${totalCampaigns}</div>
-        <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Campaigns</div>
+    <div class="section-title">💰 Funders & Contributions (Top 5 — AmeriCorps Excluded)</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px;">
+      <div style="background:#fef9f0;padding:18px;border-radius:8px;text-align:center;">
+        <div style="font-size:28px;font-weight:900;color:#f39c12;">${totalFunders}</div>
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Funders</div>
       </div>
       <div style="background:#f0faf4;padding:18px;border-radius:8px;text-align:center;">
-        <div style="font-size:28px;font-weight:900;color:#27ae60;">${avgCTR}%</div>
-        <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Avg Click-Through</div>
-      </div>
-      <div style="background:#f0f4fe;padding:18px;border-radius:8px;text-align:center;">
-        <div style="font-size:28px;font-weight:900;color:#3498db;">${totalOpens.toLocaleString()}</div>
-        <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Newsletter Opens</div>
+        <div style="font-size:28px;font-weight:900;color:#27ae60;">$${totalRaised.toLocaleString()}</div>
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Raised (ex. AmeriCorps)</div>
       </div>
     </div>
     <table>
-      <thead><tr><th>Campaign Name</th><th>Channel</th><th>CTR</th><th>Opens</th></tr></thead>
-      <tbody>${marketingRows}</tbody>
+      <thead><tr><th>Funder Name</th><th>Grant / Contract Amount</th><th>Relationship Stage</th></tr></thead>
+      <tbody>${funderRows || '<tr><td colspan="3" style="color:#bdc3c7;text-align:center;">No funder data</td></tr>'}</tbody>
     </table>
+  </div>
+
+  <!-- MARKETING -->
+  <div class="section">
+    <div class="section-title">📢 Marketing & Outreach</div>
+    <div style="background:#f0f4fe;padding:18px;border-radius:8px;text-align:center;margin-bottom:20px;display:inline-block;min-width:180px;">
+      <div style="font-size:32px;font-weight:900;color:#3498db;">${totalNewsletterSent.toLocaleString()}</div>
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Newsletter Subscribers This Quarter</div>
+    </div>
   </div>
 
   <!-- HIGHLIGHTS & NEXT STEPS -->
