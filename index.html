@@ -156,7 +156,8 @@
 
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('participants', this)">👥 Participants</button>
-            <button class="tab-btn" onclick="switchTab('partners', this)">🤝 Partners &amp; Donors</button>
+            <button class="tab-btn" onclick="switchTab('partners', this)">🤝 Partners</button>
+            <button class="tab-btn" onclick="switchTab('funders', this)">💰 Funders</button>
             <button class="tab-btn" onclick="switchTab('marketing', this)">📢 Marketing Performance</button>
             <button class="tab-btn" onclick="switchTab('management', this)">📈 Management Overview</button>
             <button class="tab-btn" onclick="switchTab('surveys', this)">📝 Surveys</button>
@@ -166,6 +167,10 @@
         <div id="participants" class="tab-content active">
             <div id="participantsStatsContainer" class="stats-grid">
                 <div class="loading-overlay"><div class="spinner"></div>Loading participants...</div>
+            </div>
+            <div class="section" style="margin-bottom:20px;">
+                <div class="section-title">🌟 Active Corps Members — Spotlight</div>
+                <div id="corpsMembersHighlight" style="display:flex;flex-wrap:wrap;gap:10px;min-height:36px;"></div>
             </div>
             <div class="section">
                 <div class="section-title">Participant Geographic Distribution — State of Alabama</div>
@@ -189,13 +194,12 @@
                 <div class="loading-overlay"><div class="spinner"></div>Loading partners...</div>
             </div>
             <div class="section">
-                <div class="section-title">Partner Donations &amp; Contributions</div>
-                <table><thead><tr><th>Partner Name</th><th>Contact Type</th><th>Contribution Amount</th><th>Relationship Stage</th></tr></thead>
-                <tbody id="donationTableBody"></tbody></table>
+                <div class="section-title">Featured Partners</div>
+                <div id="partnerHighlightSnippet" class="breakdown-grid"></div>
             </div>
             <div class="section">
                 <div class="section-title">Program &amp; Placement Partners</div>
-                <p style="font-size:12px;color:#7f8c8d;margin-bottom:12px;">Active programming partners only — AmeriCorps host sites, Career Navigator partners, employers, and community organizations. Financial funders and donors are listed in the Contributions table above.</p>
+                <p style="font-size:12px;color:#7f8c8d;margin-bottom:12px;">Active programming partners — AmeriCorps host sites, Career Navigator partners, employers, and community organizations. Financial funders and donors are listed on the Funders tab.</p>
                 <table><thead><tr><th>Partner Name</th><th>Partner Role</th><th>Status</th><th>Primary Contact</th></tr></thead>
                 <tbody id="programTableBody"></tbody></table>
             </div>
@@ -209,24 +213,43 @@
             </div>
         </div>
 
+        <!-- FUNDERS TAB -->
+        <div id="funders" class="tab-content">
+            <div id="fundersStatsContainer" class="stats-grid">
+                <div class="loading-overlay"><div class="spinner"></div>Loading funders...</div>
+            </div>
+            <div class="section">
+                <div class="section-title">Featured Funders</div>
+                <div id="funderHighlightSnippet" class="breakdown-grid"></div>
+            </div>
+            <div class="section">
+                <div class="section-title">Funder Contributions</div>
+                <div id="funderNamesHighlight" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;min-height:32px;"></div>
+                <table><thead><tr><th>Funder Name</th><th>Funder Type</th><th>Contribution Amount</th><th>Relationship Stage</th></tr></thead>
+                <tbody id="donationTableBody"></tbody></table>
+            </div>
+            <div class="section">
+                <div class="section-title">Funder Type Distribution</div>
+                <div class="breakdown-grid">
+                    <div id="funderTypeBreakdown"></div>
+                    <div id="funderStageBreakdown"></div>
+                </div>
+                <div class="chart-container"><canvas id="funderTypeChart"></canvas></div>
+            </div>
+        </div>
+
         <!-- MARKETING TAB -->
         <div id="marketing" class="tab-content">
-            <div id="marketingStatsContainer" class="stats-grid">
-                <div class="loading-overlay"><div class="spinner"></div>Loading campaigns...</div>
-            </div>
             <div class="section">
-                <div class="section-title">Marketing Campaigns Performance</div>
-                <table><thead><tr><th>Campaign Name</th><th>Channel</th><th>Month</th><th>CTR (%)</th><th>Newsletter Opens</th><th>Goal</th><th>Actual</th><th>Growth %</th><th>Status</th></tr></thead>
-                <tbody id="campaignTableBody"></tbody></table>
-            </div>
-            <div class="section">
-                <div class="section-title">Channel Performance &amp; KPIs</div>
-                <div class="breakdown-grid">
-                    <div id="channelBreakdown"></div>
-                    <div id="priorityBreakdown"></div>
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+                    <div class="section-title" style="margin-bottom:0;">Newsletters</div>
+                    <div style="text-align:right;">
+                        <div id="newsletterTotalCount" style="font-size:36px;font-weight:800;color:#3498db;line-height:1;">—</div>
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#7f8c8d;margin-top:2px;">Total Newsletter Subs This Quarter</div>
+                    </div>
                 </div>
-                <div class="chart-container"><canvas id="marketingChannelChart"></canvas></div>
-                <div class="chart-container"><canvas id="ctrChart"></canvas></div>
+                <table><thead><tr><th>Newsletter</th><th>Sent</th></tr></thead>
+                <tbody id="newsletterTableBody"></tbody></table>
             </div>
         </div>
 
@@ -235,6 +258,11 @@
             <div class="section">
                 <div class="section-title">Executive Summary — All Data Points</div>
                 <div id="managementOverview" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;"></div>
+            </div>
+            <div class="section">
+                <div class="section-title">🎯 2028 Strategic Goals — Milestone Tracker</div>
+                <p style="font-size:13px;color:#7f8c8d;margin-bottom:28px;">Tracking Birmingham Corps's progress toward 2028 impact milestones. Update targets below in the <code style="background:#f4f6fa;padding:2px 6px;border-radius:4px;">GOALS_2028</code> constant to match your official strategic plan.</p>
+                <div id="strategicGoals2028"></div>
             </div>
         </div>
 
@@ -346,7 +374,7 @@
     <script>
         const API_BASE = '/.netlify/functions/monday-data';
 
-        let allData = { participants: [], partners: [], marketing: [] };
+        let allData = { participants: [], partners: [], funders: [], marketing: [] };
         let chartInstances = {};
 
         // Map raw Monday.com status values to clean display categories
@@ -368,13 +396,15 @@
         async function initDashboard() {
             setSyncStatus('loading');
             try {
-                const [participants, partners, marketing] = await Promise.all([
+                const [participants, partners, funders, marketing] = await Promise.all([
                     fetchBoard('participants'),
                     fetchBoard('partners'),
+                    fetchBoard('funders'),
                     fetchBoard('marketing')
                 ]);
                 allData.participants = participants;
                 allData.partners = partners;
+                allData.funders = funders;
                 allData.marketing = marketing;
                 updateAllSections();
                 setSyncStatus('synced');
@@ -402,27 +432,33 @@
         function updateAllSections() {
             renderParticipantStats();
             renderParticipantBreakdown();
+            renderCorpsMemberHighlights();
             renderPartnerStats();
+            renderPartnerHighlights();
             renderPartnerTables();
             renderPartnerBreakdown();
+            renderFunderStats();
+            renderFunderHighlights();
+            renderFunderTable();
+            renderFunderBreakdown();
             renderMarketingStats();
             renderMarketingCampaigns();
-            renderMarketingChannels();
             renderManagementOverview();
+            renderStrategicGoals2028();
         }
 
         function renderParticipantStats() {
             const data = allData.participants;
             const total = data.length;
             const active = data.filter(p => getStatusLabel(p.color_mm28tqgd) === 'Active').length;
-            const inactive = data.filter(p => {
-                const label = getStatusLabel(p.color_mm28tqgd);
-                return label === 'Alumni' || label === 'Did Not Complete Program';
-            }).length;
+            const activeCorpsMembers = data.filter(p =>
+                (p.color_mm2ybdsg || '').toLowerCase().includes('americorps') &&
+                getStatusLabel(p.color_mm28tqgd) === 'Active'
+            ).length;
             document.getElementById('participantsStatsContainer').innerHTML = `
-                <div class="stat-card info"><div class="stat-value">${total}</div><div class="stat-label">Total Participants</div></div>
-                <div class="stat-card success"><div class="stat-value">${active}</div><div class="stat-label">Active Participants</div></div>
-                <div class="stat-card warning"><div class="stat-value">${inactive}</div><div class="stat-label">Inactive / Alumni</div></div>
+                <div class="stat-card info"><div class="stat-value">${total}</div><div class="stat-label">Total Program Participants Of All Time</div></div>
+                <div class="stat-card success"><div class="stat-value">${active}</div><div class="stat-label">Active Participant Quarterly</div></div>
+                <div class="stat-card warning"><div class="stat-value">${activeCorpsMembers}</div><div class="stat-label">Total Active Corps Collective Members</div></div>
             `;
             renderZipcodeHeatmap();
         }
@@ -600,83 +636,70 @@
             });
         }
 
+        // Partner Role label — convert raw Monday.com Partner Type values to plain English
+        function partnerRoleLabel(raw) {
+            if (!raw) return '-';
+            const t = raw.toLowerCase();
+            if (t.includes('americorps'))       return 'AmeriCorps Host Site';
+            if (t.includes('employer'))         return 'Employer Partner';
+            if (t.includes('program partner'))  return 'Program Partner';
+            return raw;
+        }
+
+        // Stage label → short status badge
+        function stageLabel(raw) {
+            if (!raw) return '';
+            const r = raw.toLowerCase();
+            if (r.includes('current')) return 'Active';
+            if (r.includes('past') || r.includes('former')) return 'Past';
+            if (r.includes('prospective')) return 'Prospective';
+            return raw;
+        }
+
+        function isAmeriCorpsFunder(f) {
+            return (f.dropdown_mm658e0s || '').toLowerCase().includes('americorps');
+        }
+
+        const CHIP_COLORS = ['#2c3e50','#e74c3c','#27ae60','#3498db','#8e44ad','#e67e22','#17a589','#c0392b'];
+
+        function makeHighlightCard(title, list) {
+            return `<div class="breakdown-card"><h4 style="margin-bottom:12px;">${title}</h4>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">${list.length
+                    ? list.map((n,i) => { const c=CHIP_COLORS[i%CHIP_COLORS.length]; return `<span style="background:${c}18;color:${c};border:1px solid ${c}35;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:600;">${n}</span>`; }).join('')
+                    : '<span style="color:#bdc3c7;font-size:13px;">None yet</span>'}</div></div>`;
+        }
+
+        function makeBreakdownCard(title, counts) {
+            return `<div class="breakdown-card"><h4>${title}</h4>
+                <ul class="breakdown-list">${Object.entries(counts).map(([k,v]) =>
+                    `<li class="breakdown-item"><span>${k}</span><span>${v}</span></li>`).join('')}</ul></div>`;
+        }
+
+        // ── Partners tab ─────────────────────────────────────────────────
         function renderPartnerStats() {
-            const data = allData.partners;
-            const totalDonations = data.reduce((s, p) => s + (parseFloat(p.numeric_mm2886n2) || 0), 0);
-            const totalSlots = data.reduce((s, p) => s + (parseFloat(p.numeric_mm28kjd9) || 0), 0);
+            const partners = allData.partners;
             document.getElementById('partnersStatsContainer').innerHTML = `
-                <div class="stat-card info"><div class="stat-value">${data.length}</div><div class="stat-label">Total Partners</div></div>
-                <div class="stat-card success"><div class="stat-value">$${(totalDonations/1000).toFixed(0)}K</div><div class="stat-label">Total Donations</div></div>
-                <div class="stat-card warning"><div class="stat-value">${totalSlots}</div><div class="stat-label">Job Placements Available</div></div>
+                <div class="stat-card info"><div class="stat-value">${partners.length}</div><div class="stat-label">Total Partners Of All Time</div></div>
             `;
         }
 
+        function renderPartnerHighlights() {
+            const names = allData.partners.slice(0, 5).map(x => x.name).filter(Boolean);
+            document.getElementById('partnerHighlightSnippet').innerHTML = makeHighlightCard('Featured Partners', names);
+        }
+
         function renderPartnerTables() {
-            const data = allData.partners;
-
-            // Sort donations by relationship stage
-            const stageOrder = ['Current Engagement','Donated','Funding Discussion','Prospective Partner','Volunteer Engagement','Information Exchange','Worked with in Past','Inactive Organization'];
-            const sortedDonations = [...data].sort((a, b) => {
-                const ai = stageOrder.indexOf(a.color_mm28m1nh || '');
-                const bi = stageOrder.indexOf(b.color_mm28m1nh || '');
-                return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-            });
-
-            // Render donations table — no Jobs/Slots column
-            document.getElementById('donationTableBody').innerHTML = sortedDonations.map(p => {
-                const amt = parseFloat(p.numeric_mm2886n2 || 0);
-                const amtDisplay = amt > 0 ? '$' + amt.toLocaleString() : '—';
-                return `<tr>
-                    <td><strong>${p.name}</strong></td>
-                    <td>${p.dropdown_mm45b9cy || '-'}</td>
-                    <td>${amtDisplay}</td>
-                    <td>${p.color_mm28m1nh || '-'}</td>
-                </tr>`;
-            }).join('');
-
-            // Program & Placement Partners — show only genuine programming partners, deduplicated
-            // Exclude any partner tagged as Funder (they belong in the contributions table above)
-            // Include only partners with a primary programming role: Employer or Program Partner
-            const financialTags = ['funder'];
-            const programTags   = ['program partner','employer'];
-
-            // Label map — convert raw Monday.com Partner Type values to plain English
-            function partnerRoleLabel(raw) {
-                if (!raw) return '-';
-                const t = raw.toLowerCase();
-                if (t.includes('americorps'))       return 'AmeriCorps Host Site';
-                if (t.includes('employer'))         return 'Employer Partner';
-                if (t.includes('program partner'))  return 'Program Partner';
-                return raw;
-            }
-
-            // Stage label → short status badge
-            function stageLabel(raw) {
-                if (!raw) return '';
-                if (raw.toLowerCase().includes('current')) return 'Active';
-                if (raw.toLowerCase().includes('donated') || raw.toLowerCase().includes('engagement')) return 'Active';
-                if (raw.toLowerCase().includes('past') || raw.toLowerCase().includes('former') || raw.toLowerCase().includes('worked')) return 'Past';
-                if (raw.toLowerCase().includes('prospective')) return 'Prospective';
-                return raw;
-            }
-
-            // Filter: must have a program role AND must not have any financial tag
-            const filtered = data.filter(p => {
-                const types = (p.dropdown_mm45b9cy || '').toLowerCase().split(',').map(t => t.trim());
-                const hasFinancial = types.some(t => financialTags.some(f => t.includes(f)));
-                const hasProgram   = types.some(t => programTags.some(r => t.includes(r)));
-                return hasProgram && !hasFinancial;
-            });
+            const partners = allData.partners;
 
             // Deduplicate by name — prefer active/current relationship over past
             const stageRank = {'Active':0,'Prospective':1,'Past':2,'':3};
-            filtered.sort((a,b) => {
-                const ra = stageRank[stageLabel(a.color_mm28m1nh)] ?? 3;
-                const rb = stageRank[stageLabel(b.color_mm28m1nh)] ?? 3;
+            const sortedPartners = [...partners].sort((a,b) => {
+                const ra = stageRank[stageLabel(a.color_mm65tnts)] ?? 3;
+                const rb = stageRank[stageLabel(b.color_mm65tnts)] ?? 3;
                 return ra - rb;
             });
             const seen = new Set();
-            const programPartners = filtered.filter(p => {
+            const programPartners = sortedPartners.filter(p => {
                 if (seen.has(p.name.trim().toLowerCase())) return false;
                 seen.add(p.name.trim().toLowerCase());
                 return true;
@@ -684,9 +707,9 @@
 
             document.getElementById('programTableBody').innerHTML = programPartners.length
                 ? programPartners.map(p => {
-                    const role   = partnerRoleLabel(p.dropdown_mm45b9cy);
-                    const status = stageLabel(p.color_mm28m1nh);
-                    const contact = p.text_mm2817s2 || '-';
+                    const role   = partnerRoleLabel(p.dropdown_mm651r0a);
+                    const status = stageLabel(p.color_mm65tnts);
+                    const contact = p.text_mm65nnww || '-';
                     const badge  = status === 'Active'
                         ? `<span style="background:#e8f8ef;color:#27ae60;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Active</span>`
                         : status === 'Past'
@@ -705,120 +728,242 @@
         }
 
         function renderPartnerBreakdown() {
-            const data = allData.partners;
-            const contactCounts = {}, stageCounts = {};
-            data.forEach(p => {
-                const t = p.dropdown_mm45b9cy || 'Unassigned';
-                contactCounts[t] = (contactCounts[t] || 0) + 1;
-                const s = p.color_mm28m1nh || 'Unknown';
+            const typeCounts = {}, stageCounts = {};
+            allData.partners.forEach(p => {
+                const t = p.dropdown_mm651r0a || 'Unassigned';
+                typeCounts[t] = (typeCounts[t] || 0) + 1;
+                const s = p.color_mm65tnts || 'Unknown';
                 stageCounts[s] = (stageCounts[s] || 0) + 1;
             });
-            const makeCard = (title, counts) => `
-                <div class="breakdown-card"><h4>${title}</h4>
-                <ul class="breakdown-list">${Object.entries(counts).map(([k,v]) =>
-                    `<li class="breakdown-item"><span>${k}</span><span>${v}</span></li>`).join('')}</ul></div>`;
-            document.getElementById('partnerTypeBreakdown').innerHTML = makeCard('By Contact Type', contactCounts);
-            document.getElementById('partnerStageBreakdown').innerHTML = makeCard('By Relationship Stage', stageCounts);
+            document.getElementById('partnerTypeBreakdown').innerHTML = makeBreakdownCard('By Partner Type', typeCounts);
+            document.getElementById('partnerStageBreakdown').innerHTML = makeBreakdownCard('By Relationship Stage', stageCounts);
 
             const ctx = document.getElementById('partnerTypeChart');
             if (chartInstances.partnerType) chartInstances.partnerType.destroy();
             chartInstances.partnerType = new Chart(ctx, {
                 type: 'bar',
-                data: { labels: Object.keys(contactCounts), datasets: [{ label: 'Partners by Type', data: Object.values(contactCounts), backgroundColor: '#e74c3c' }] },
+                data: { labels: Object.keys(typeCounts), datasets: [{ label: 'Partners by Type', data: Object.values(typeCounts), backgroundColor: '#e74c3c' }] },
                 options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } }
             });
         }
 
-        function renderMarketingStats() {
-            const data = allData.marketing;
-            const avgCTR = data.length > 0 ? (data.reduce((s, m) => s + (parseFloat(m.numeric_mm31cfpz) || 0), 0) / data.length).toFixed(2) : '0';
-            const totalOpens = data.reduce((s, m) => s + (parseFloat(m.numeric_mm31zz9j) || 0), 0);
-            document.getElementById('marketingStatsContainer').innerHTML = `
-                <div class="stat-card info"><div class="stat-value">${data.length}</div><div class="stat-label">Active Campaigns</div></div>
-                <div class="stat-card success"><div class="stat-value">${avgCTR}%</div><div class="stat-label">Avg Click-Through Rate</div></div>
-                <div class="stat-card warning"><div class="stat-value">${totalOpens.toLocaleString()}</div><div class="stat-label">Total Newsletter Opens</div></div>
+        // ── Funders tab ──────────────────────────────────────────────────
+        function renderFunderStats() {
+            const funders = allData.funders;
+            const nonAmeriCorpsFunders = funders.filter(f => !isAmeriCorpsFunder(f));
+            const americorpsFunders = funders.filter(isAmeriCorpsFunder);
+
+            const totalRaisedYTD = nonAmeriCorpsFunders.reduce((s, f) => s + (parseFloat(f.numeric_mm65vv1m) || 0), 0);
+            const spentYTD = nonAmeriCorpsFunders.reduce((s, f) => s + (parseFloat(f.numeric_mm65890b) || 0), 0);
+            const dueYTD = nonAmeriCorpsFunders.reduce((s, f) => s + (parseFloat(f.numeric_mm659sqb) || 0), 0);
+            const owedYTD = nonAmeriCorpsFunders.reduce((s, f) => s + (parseFloat(f.numeric_mm658226) || 0), 0);
+            const americorpsFunds = americorpsFunders.reduce((s, f) => s + (parseFloat(f.numeric_mm65vv1m) || 0), 0);
+
+            document.getElementById('fundersStatsContainer').innerHTML = `
+                <div class="stat-card info"><div class="stat-value">${funders.length}</div><div class="stat-label">Total Funders Of All Time</div></div>
+                <div class="stat-card success">
+                    <div class="stat-value">$${(totalRaisedYTD/1000).toFixed(0)}K</div>
+                    <div class="stat-label">Total Funds Yr. To Date Raised (Calendar Year Jan 1–Dec 1)</div>
+                    <div style="font-size:11px;margin-top:6px;opacity:0.9;">AmeriCorps Excluded · Spent $${spentYTD.toLocaleString()} · Due $${dueYTD.toLocaleString()} · Owed $${owedYTD.toLocaleString()}</div>
+                </div>
+                <div class="stat-card warning"><div class="stat-value">$${(americorpsFunds/1000).toFixed(0)}K</div><div class="stat-label">Total AmeriCorps Members Funds</div></div>
             `;
         }
 
-        function renderMarketingCampaigns() {
-            const data = allData.marketing;
-            document.getElementById('campaignTableBody').innerHTML = data.map(m => {
-                const growth = parseFloat(m.numeric_mm33k7yd || 0);
+        function renderFunderHighlights() {
+            const names = allData.funders.slice(0, 5).map(x => x.name).filter(Boolean);
+            document.getElementById('funderHighlightSnippet').innerHTML = makeHighlightCard('Featured Funders', names);
+        }
+
+        function renderFunderTable() {
+            const funders = allData.funders;
+            const stageOrder = ['Current Funder','Current Employer/Program Partner','Prospective Funder','Prospective Employer/Program Partner','Facilitator','Former Funder','Former Employer/Program Partner'];
+            const sortedFunders = [...funders].sort((a, b) => {
+                const ai = stageOrder.indexOf(a.color_mm65ah3h || '');
+                const bi = stageOrder.indexOf(b.color_mm65ah3h || '');
+                return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+            });
+
+            // Funder name chips in the contributions box
+            const chipsEl = document.getElementById('funderNamesHighlight');
+            if (chipsEl) {
+                const topFunders = sortedFunders.slice(0, 8);
+                chipsEl.innerHTML = topFunders.length
+                    ? topFunders.map((f, i) => {
+                        const c = CHIP_COLORS[i % CHIP_COLORS.length];
+                        const amt = parseFloat(f.numeric_mm65vv1m || 0);
+                        const amtStr = amt > 0 ? ` · $${amt >= 1000 ? (amt/1000).toFixed(0)+'K' : amt.toLocaleString()}` : '';
+                        return `<span style="background:${c}18;color:${c};border:1px solid ${c}35;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:600;">${f.name}${amtStr}</span>`;
+                    }).join('')
+                    : '<span style="color:#bdc3c7;font-size:13px;">No funders found</span>';
+            }
+
+            document.getElementById('donationTableBody').innerHTML = sortedFunders.map(f => {
+                const amt = parseFloat(f.numeric_mm65vv1m || 0);
+                const amtDisplay = amt > 0 ? '$' + amt.toLocaleString() : '—';
                 return `<tr>
-                    <td><strong>${m.name}</strong></td>
-                    <td>${m.dropdown_mm31wyzn || '-'}</td>
-                    <td>${m.date_mm33s7em ? new Date(m.date_mm33s7em).toLocaleDateString() : '-'}</td>
-                    <td>${parseFloat(m.numeric_mm31cfpz || 0).toFixed(2)}%</td>
-                    <td>${parseInt(m.numeric_mm31zz9j || 0)}</td>
-                    <td>${parseInt(m.numeric_mm33krrk || 0)}</td>
-                    <td>${parseInt(m.numeric_mm33qg94 || 0)}</td>
-                    <td class="${growth >= 0 ? 'growth-positive' : 'growth-negative'}">${growth >= 0 ? '+' : ''}${growth.toFixed(1)}%</td>
-                    <td><span class="info-badge">${m.color_mm31c5ej || '—'}</span></td>
+                    <td><strong>${f.name}</strong></td>
+                    <td>${f.dropdown_mm658e0s || '-'}</td>
+                    <td>${amtDisplay}</td>
+                    <td>${f.color_mm65ah3h || '-'}</td>
                 </tr>`;
             }).join('');
         }
 
-        function renderMarketingChannels() {
-            const data = allData.marketing;
-            const channelCounts = {}, priorityCounts = {};
-            data.forEach(m => {
-                const c = m.dropdown_mm31wyzn || 'Other';
-                channelCounts[c] = (channelCounts[c] || 0) + 1;
-                const p = m.color_mm31c5ej || 'Unknown';
-                priorityCounts[p] = (priorityCounts[p] || 0) + 1;
-            });
-            const makeCard = (title, counts) => `
-                <div class="breakdown-card"><h4>${title}</h4>
-                <ul class="breakdown-list">${Object.entries(counts).map(([k,v]) =>
-                    `<li class="breakdown-item"><span>${k}</span><span>${v}</span></li>`).join('')}</ul></div>`;
-            document.getElementById('channelBreakdown').innerHTML = makeCard('By Channel', channelCounts);
-            document.getElementById('priorityBreakdown').innerHTML = makeCard('By Priority', priorityCounts);
+        function renderStrategicGoals2028() {
+            const p = allData.participants, pa = allData.partners, fu = allData.funders;
+            const activeResidents = p.filter(x =>
+                getStatusLabel(x.color_mm28tqgd) === 'Active' &&
+                !(x.color_mm2ybdsg || '').toLowerCase().includes('americorps')
+            ).length;
+            const fundsRaised = fu.filter(f => !isAmeriCorpsFunder(f))
+                .reduce((s, f) => s + (parseFloat(f.numeric_mm65vv1m) || 0), 0);
 
-            const ctx1 = document.getElementById('marketingChannelChart');
-            if (chartInstances.channel) chartInstances.channel.destroy();
-            chartInstances.channel = new Chart(ctx1, {
-                type: 'pie',
-                data: { labels: Object.keys(channelCounts), datasets: [{ data: Object.values(channelCounts), backgroundColor: ['#3498db','#e74c3c','#27ae60','#f39c12','#9b59b6'] }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-            });
+            const tracked = [
+                {
+                    label: 'Recruit, train & retain residents through integrated workforce programming',
+                    icon: '👥', target: 40, current: activeResidents, color: '#3498db',
+                    format: v => v + ' residents', targetDisplay: '40 residents'
+                },
+                {
+                    label: 'Raise $750K through grants, events & donor outreach toward $2M long-term goal',
+                    icon: '📈', target: 750000, current: fundsRaised, color: '#8e44ad',
+                    format: v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'K' : v.toLocaleString()),
+                    targetDisplay: '$750K'
+                },
+            ];
 
-            const ctx2 = document.getElementById('ctrChart');
-            if (chartInstances.ctr) chartInstances.ctr.destroy();
-            chartInstances.ctr = new Chart(ctx2, {
+            const milestones = [
+                { icon: '🛤️', label: 'Launch 3 new pathway-based partnerships', detail: 'Healthcare · Education · Neighborhood Revitalization tracks', target: '3 Partnerships' },
+                { icon: '🏢', label: 'Host 2 employer partner roundtables', detail: 'Gather feedback to improve placement quality', target: '2 Roundtables' },
+                { icon: '💼', label: 'Increase job placements by 15%', detail: 'Reaching a 60% job retention rate at the 6-month mark', target: '60% Retention' },
+                { icon: '🌐', label: 'Strengthen employer & community engagement', detail: 'Monthly touchpoints and quarterly convenings', target: 'Monthly · Quarterly' },
+            ];
+
+            const el = document.getElementById('strategicGoals2028');
+            if (!el) return;
+
+            const trackedHTML = `
+                <div style="margin-bottom:28px;">
+                    <div style="font-size:12px;font-weight:700;color:#7f8c8d;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Live Data — Tracked Against Goal</div>
+                    ${tracked.map(g => {
+                        const pct = Math.min(100, Math.round((g.current / g.target) * 100));
+                        const statusColor = pct >= 100 ? '#27ae60' : pct >= 50 ? '#f39c12' : '#e74c3c';
+                        return `<div style="margin-bottom:22px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                                <span style="font-weight:700;font-size:14px;color:#2c3e50;">${g.icon} ${g.label}</span>
+                                <span style="display:flex;align-items:center;gap:8px;font-size:13px;color:#7f8c8d;">
+                                    <strong style="color:${g.color};font-size:17px;">${g.format(g.current)}</strong>
+                                    <span>of ${g.targetDisplay}</span>
+                                    <span style="background:${statusColor}22;color:${statusColor};padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;">${pct}%</span>
+                                </span>
+                            </div>
+                            <div style="background:#ecf0f1;border-radius:8px;height:12px;overflow:hidden;">
+                                <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${g.color},${g.color}bb);border-radius:8px;"></div>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>`;
+
+            const milestonesHTML = `
+                <div>
+                    <div style="font-size:12px;font-weight:700;color:#7f8c8d;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Strategic Milestones — Tracked Manually</div>
+                    ${milestones.map(m => `
+                        <div style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:#f9f9f9;border-radius:8px;margin-bottom:10px;border-left:3px solid #bdc3c7;">
+                            <span style="font-size:20px;margin-top:1px;">${m.icon}</span>
+                            <div style="flex:1;">
+                                <div style="font-size:14px;font-weight:700;color:#2c3e50;">${m.label}</div>
+                                <div style="font-size:12px;color:#7f8c8d;margin-top:3px;">${m.detail}</div>
+                            </div>
+                            <span style="background:#ecf0f1;color:#7f8c8d;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap;margin-top:2px;">${m.target}</span>
+                        </div>`).join('')}
+                </div>
+                <p style="font-size:11px;color:#bdc3c7;margin-top:16px;">* Live progress bars pull from monday.com data. Milestone items require manual status updates.</p>`;
+
+            el.innerHTML = trackedHTML + milestonesHTML;
+        }
+
+        function renderFunderBreakdown() {
+            const typeCounts = {}, stageCounts = {};
+            allData.funders.forEach(f => {
+                const t = f.dropdown_mm658e0s || 'Unassigned';
+                typeCounts[t] = (typeCounts[t] || 0) + 1;
+                const s = f.color_mm65ah3h || 'Unknown';
+                stageCounts[s] = (stageCounts[s] || 0) + 1;
+            });
+            document.getElementById('funderTypeBreakdown').innerHTML = makeBreakdownCard('By Funder Type', typeCounts);
+            document.getElementById('funderStageBreakdown').innerHTML = makeBreakdownCard('By Relationship Stage', stageCounts);
+
+            const ctx = document.getElementById('funderTypeChart');
+            if (chartInstances.funderType) chartInstances.funderType.destroy();
+            chartInstances.funderType = new Chart(ctx, {
                 type: 'bar',
-                data: { labels: data.map(m => m.name.substring(0, 20)), datasets: [{ label: 'CTR (%)', data: data.map(m => parseFloat(m.numeric_mm31cfpz || 0)), backgroundColor: '#3498db', borderRadius: 4 }] },
+                data: { labels: Object.keys(typeCounts), datasets: [{ label: 'Funders by Type', data: Object.values(typeCounts), backgroundColor: '#e74c3c' }] },
                 options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } }
             });
         }
 
+        function renderCorpsMemberHighlights() {
+            const members = allData.participants.filter(p =>
+                (p.color_mm2ybdsg || '').toLowerCase().includes('americorps') &&
+                getStatusLabel(p.color_mm28tqgd) === 'Active'
+            ).slice(0, 8);
+            const el = document.getElementById('corpsMembersHighlight');
+            if (!el) return;
+            if (!members.length) {
+                el.innerHTML = '<span style="color:#bdc3c7;font-size:13px;">No active AmeriCorps members found</span>';
+                return;
+            }
+            el.innerHTML = members.map((m, i) => {
+                const c = CHIP_COLORS[i % CHIP_COLORS.length];
+                return `<span style="background:${c}18;color:${c};border:1px solid ${c}35;padding:6px 18px;border-radius:20px;font-size:13px;font-weight:600;">${m.name}</span>`;
+            }).join('');
+        }
+
+        function renderMarketingStats() {
+            const data = allData.marketing;
+            const totalSent = data.reduce((s, m) => s + (parseFloat(m.numeric_mm6557x3) || 0), 0);
+            const el = document.getElementById('newsletterTotalCount');
+            if (el) el.textContent = totalSent.toLocaleString();
+        }
+
+        function renderMarketingCampaigns() {
+            const data = allData.marketing;
+            document.getElementById('newsletterTableBody').innerHTML = data.length
+                ? data.map(m => `<tr>
+                    <td><strong>${m.dropdown_mm65ztx6 || m.name}</strong></td>
+                    <td>${parseInt(m.numeric_mm6557x3 || 0)}</td>
+                </tr>`).join('')
+                : '<tr><td colspan="2" style="text-align:center;color:#bdc3c7;padding:20px;">No newsletters logged yet</td></tr>';
+        }
+
+
         function renderManagementOverview() {
-            const p = allData.participants, pa = allData.partners, m = allData.marketing;
-            const totalDonations = pa.reduce((s, x) => s + (parseFloat(x.numeric_mm2886n2) || 0), 0);
-            const totalSlots = pa.reduce((s, x) => s + (parseFloat(x.numeric_mm28kjd9) || 0), 0);
-            const avgCTR = m.length > 0 ? (m.reduce((s, x) => s + (parseFloat(x.numeric_mm31cfpz) || 0), 0) / m.length).toFixed(2) : '0';
+            const p = allData.participants, pa = allData.partners, fu = allData.funders, m = allData.marketing;
+            const nonAmeriCorpsFunders = fu.filter(f => !isAmeriCorpsFunder(f));
+            const totalRaisedYTD = nonAmeriCorpsFunders.reduce((s, x) => s + (parseFloat(x.numeric_mm65vv1m) || 0), 0);
+            const totalSent = m.reduce((s, x) => s + (parseFloat(x.numeric_mm6557x3) || 0), 0);
             document.getElementById('managementOverview').innerHTML = `
                 <div class="breakdown-card" style="border-color:var(--info)">
                     <h4>👥 Participant Metrics</h4>
                     <ul class="breakdown-list">
-                        <li class="breakdown-item"><span>Total Participants</span><span>${p.length}</span></li>
-                        <li class="breakdown-item"><span>Active</span><span>${p.filter(x => getStatusLabel(x.color_mm28tqgd) === 'Active').length}</span></li>
-                        <li class="breakdown-item"><span>Inactive / Alumni</span><span>${p.filter(x => ['Alumni','Did Not Complete Program'].includes(getStatusLabel(x.color_mm28tqgd))).length}</span></li>
+                        <li class="breakdown-item"><span>Total Program Participants Of All Time</span><span>${p.length}</span></li>
+                        <li class="breakdown-item"><span>Active Participant Quarterly</span><span>${p.filter(x => getStatusLabel(x.color_mm28tqgd) === 'Active').length}</span></li>
+                        <li class="breakdown-item"><span>Total Active Corps Collective Members</span><span>${p.filter(x => (x.color_mm2ybdsg || '').toLowerCase().includes('americorps') && getStatusLabel(x.color_mm28tqgd) === 'Active').length}</span></li>
                     </ul>
                 </div>
                 <div class="breakdown-card" style="border-color:var(--success)">
                     <h4>🤝 Partnership Metrics</h4>
                     <ul class="breakdown-list">
-                        <li class="breakdown-item"><span>Total Partners</span><span>${pa.length}</span></li>
-                        <li class="breakdown-item"><span>Total Contributions</span><span>$${(totalDonations/1000).toFixed(0)}K</span></li>
-                        <li class="breakdown-item"><span>Available Placements</span><span>${totalSlots}</span></li>
+                        <li class="breakdown-item"><span>Total Partners Of All Time</span><span>${pa.length}</span></li>
+                        <li class="breakdown-item"><span>Total Funders</span><span>${fu.length}</span></li>
+                        <li class="breakdown-item"><span>Total Funds Raised YTD (excl. AmeriCorps)</span><span>$${(totalRaisedYTD/1000).toFixed(0)}K</span></li>
                     </ul>
                 </div>
                 <div class="breakdown-card" style="border-color:var(--warning)">
                     <h4>📢 Marketing Metrics</h4>
                     <ul class="breakdown-list">
-                        <li class="breakdown-item"><span>Active Campaigns</span><span>${m.length}</span></li>
-                        <li class="breakdown-item"><span>Avg Click-Through Rate</span><span>${avgCTR}%</span></li>
-                        <li class="breakdown-item"><span>Total Newsletter Opens</span><span>${m.reduce((s,x) => s+(parseFloat(x.numeric_mm31zz9j)||0),0).toLocaleString()}</span></li>
+                        <li class="breakdown-item"><span>Total Newsletter Subs This Quarter</span><span>${totalSent.toLocaleString()}</span></li>
                     </ul>
                 </div>
             `;
