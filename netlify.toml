@@ -6,7 +6,7 @@
   NODE_VERSION = "18"
 
 [functions]
-  node_bundler = "esbuild"
+  node_bundler = "nft"
 
 # ── Feature 9: Deploy Previews — staging environment ────────────────────────
 [context.production]
