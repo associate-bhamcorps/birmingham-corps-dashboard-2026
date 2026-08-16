@@ -215,27 +215,43 @@
 
         <!-- FUNDERS TAB -->
         <div id="funders" class="tab-content">
+
+            <!-- ── Top stat cards ── -->
             <div id="fundersStatsContainer" class="stats-grid">
                 <div class="loading-overlay"><div class="spinner"></div>Loading funders...</div>
             </div>
+
+            <!-- ── AmeriCorps Fund Tracker ── -->
             <div class="section">
-                <div class="section-title">Featured Funders</div>
-                <div id="funderHighlightSnippet" class="breakdown-grid"></div>
+                <div class="section-title">🏛️ AmeriCorps Fund Tracker</div>
+                <p style="font-size:13px;color:#7f8c8d;margin-bottom:18px;">Tracks how AmeriCorps grant funds have been received, spent, and what remains from the total award.</p>
+                <div id="americorpsFundTracker" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;"></div>
             </div>
+
+            <!-- ── Non-AmeriCorps YTD ── -->
             <div class="section">
-                <div class="section-title">Funder Contributions</div>
-                <div id="funderNamesHighlight" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;min-height:32px;"></div>
-                <table><thead><tr><th>Funder Name</th><th>Funder Type</th><th>Contribution Amount</th><th>Relationship Stage</th></tr></thead>
-                <tbody id="donationTableBody"></tbody></table>
-            </div>
-            <div class="section">
-                <div class="section-title">Funder Type Distribution</div>
-                <div class="breakdown-grid">
-                    <div id="funderTypeBreakdown"></div>
-                    <div id="funderStageBreakdown"></div>
+                <div class="section-title">💵 Total Funds Yr. To Date Raised — Calendar Year Jan 1 – Dec 1
+                    <span style="font-size:11px;font-weight:500;color:#e74c3c;margin-left:8px;text-transform:none;">AmeriCorps Excluded</span>
                 </div>
-                <div class="chart-container"><canvas id="funderTypeChart"></canvas></div>
+                <div id="nonAmeriCorpsFunds" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;"></div>
             </div>
+
+            <!-- ── Funder Highlights ── -->
+            <div class="section">
+                <div class="section-title">✨ Funder Highlights — Who Sent What</div>
+                <p style="font-size:13px;color:#7f8c8d;margin-bottom:14px;">A snapshot of contributing organizations and their grant/contract amounts.</p>
+                <div id="funderNamesHighlight" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+            </div>
+
+            <!-- ── Full Funder Table ── -->
+            <div class="section">
+                <div class="section-title">All Funders &amp; Contributions</div>
+                <table>
+                    <thead><tr><th>Funder Name</th><th>Type</th><th>Amount</th><th>Relationship Stage</th></tr></thead>
+                    <tbody id="donationTableBody"></tbody>
+                </table>
+            </div>
+
         </div>
 
         <!-- MARKETING TAB -->
@@ -468,7 +484,6 @@
             renderFunderStats();
             renderFunderHighlights();
             renderFunderTable();
-            renderFunderBreakdown();
             renderMarketingStats();
             renderMarketingCampaigns();
             renderManagementOverview();
@@ -776,66 +791,96 @@
         }
 
         // ── Funders tab ──────────────────────────────────────────────────
+        function fmt$(n) { return n >= 1000 ? '$' + (n/1000).toFixed(0) + 'K' : '$' + n.toLocaleString(); }
+        function miniCard(label, value, color) {
+            return `<div style="background:${color}12;border:1.5px solid ${color}30;border-radius:10px;padding:18px 14px;text-align:center;">
+                <div style="font-size:26px;font-weight:800;color:${color};">${value}</div>
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:#5d6d7e;margin-top:6px;line-height:1.4;">${label}</div>
+            </div>`;
+        }
+
         function renderFunderStats() {
             const funders = allData.funders;
-            const nonAmeriCorpsFunders = funders.filter(f => !isAmeriCorpsFunder(f));
-            const americorpsFunders = funders.filter(isAmeriCorpsFunder);
+            const nonAC  = funders.filter(f => !isAmeriCorpsFunder(f));
+            const acOnly = funders.filter(isAmeriCorpsFunder);
 
-            const totalRaisedYTD = nonAmeriCorpsFunders.reduce((s, f) => s + (parseFloat(f.numeric_mm65vv1m) || 0), 0);
-            const spentYTD = nonAmeriCorpsFunders.reduce((s, f) => s + (parseFloat(f.numeric_mm65890b) || 0), 0);
-            const dueYTD = nonAmeriCorpsFunders.reduce((s, f) => s + (parseFloat(f.numeric_mm659sqb) || 0), 0);
-            const owedYTD = nonAmeriCorpsFunders.reduce((s, f) => s + (parseFloat(f.numeric_mm658226) || 0), 0);
-            const americorpsFunds = americorpsFunders.reduce((s, f) => s + (parseFloat(f.numeric_mm65vv1m) || 0), 0);
+            // AmeriCorps numbers
+            const acAward    = acOnly.reduce((s,f) => s + (parseFloat(f.numeric_mm65vv1m) || 0), 0);
+            const acReceived = acOnly.reduce((s,f) => s + (parseFloat(f.numeric_mm67fc5e)  || 0), 0);
+            const acSpent    = acOnly.reduce((s,f) => s + (parseFloat(f.numeric_mm65890b)  || 0), 0);
+            const acLeftover = acAward - acSpent;
 
+            // Non-AmeriCorps numbers
+            const totalRaised = nonAC.reduce((s,f) => s + (parseFloat(f.numeric_mm65vv1m) || 0), 0);
+            const nacReceived = nonAC.reduce((s,f) => s + (parseFloat(f.numeric_mm67fc5e)  || 0), 0);
+            const nacSpent    = nonAC.reduce((s,f) => s + (parseFloat(f.numeric_mm65890b)  || 0), 0);
+            const nacDue      = nonAC.reduce((s,f) => s + (parseFloat(f.numeric_mm659sqb)  || 0), 0);
+            const nacOwed     = nonAC.reduce((s,f) => s + (parseFloat(f.numeric_mm658226)  || 0), 0);
+
+            // Top stat cards
             document.getElementById('fundersStatsContainer').innerHTML = `
                 <div class="stat-card info"><div class="stat-value">${funders.length}</div><div class="stat-label">Total Funders Of All Time</div></div>
-                <div class="stat-card success">
-                    <div class="stat-value">$${(totalRaisedYTD/1000).toFixed(0)}K</div>
-                    <div class="stat-label">Total Funds Yr. To Date Raised (Calendar Year Jan 1–Dec 1)</div>
-                    <div style="font-size:11px;margin-top:6px;opacity:0.9;">AmeriCorps Excluded · Spent $${spentYTD.toLocaleString()} · Due $${dueYTD.toLocaleString()} · Owed $${owedYTD.toLocaleString()}</div>
-                </div>
-                <div class="stat-card warning"><div class="stat-value">$${(americorpsFunds/1000).toFixed(0)}K</div><div class="stat-label">Total AmeriCorps Members Funds</div></div>
+                <div class="stat-card success"><div class="stat-value">${fmt$(totalRaised)}</div><div class="stat-label">Total Funds Yr. To Date Raised (AmeriCorps Excluded)</div></div>
+                <div class="stat-card warning"><div class="stat-value">${fmt$(acAward)}</div><div class="stat-label">Total AmeriCorps Grant Award</div></div>
             `;
+
+            // AmeriCorps Fund Tracker
+            document.getElementById('americorpsFundTracker').innerHTML =
+                miniCard('Total Award', fmt$(acAward),    '#8e44ad') +
+                miniCard('Sent by Gov (Received)', fmt$(acReceived), '#2980b9') +
+                miniCard('Spent',      fmt$(acSpent),    '#e74c3c') +
+                miniCard('Leftover / Remaining', fmt$(acLeftover >= 0 ? acLeftover : 0), '#27ae60');
+
+            // Non-AmeriCorps YTD breakdown
+            document.getElementById('nonAmeriCorpsFunds').innerHTML =
+                miniCard('Total Raised YTD',  fmt$(totalRaised),  '#27ae60') +
+                miniCard('Received',          fmt$(nacReceived),  '#3498db') +
+                miniCard('Spent',             fmt$(nacSpent),     '#e74c3c') +
+                miniCard('Due',               fmt$(nacDue),       '#f39c12') +
+                miniCard('Owed / Remaining',  fmt$(nacOwed),      '#9b59b6');
         }
 
         function renderFunderHighlights() {
-            const names = allData.funders.slice(0, 5).map(x => x.name).filter(Boolean);
-            document.getElementById('funderHighlightSnippet').innerHTML = makeHighlightCard('Featured Funders', names);
+            const funders = allData.funders;
+            const stageOrder = ['Current Funder','Current Employer/Program Partner','Prospective Funder','Working on it'];
+            const sorted = [...funders].sort((a,b) => {
+                const ai = stageOrder.indexOf(a.color_mm65ah3h || '');
+                const bi = stageOrder.indexOf(b.color_mm65ah3h || '');
+                if (ai !== bi) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+                return (parseFloat(b.numeric_mm65vv1m) || 0) - (parseFloat(a.numeric_mm65vv1m) || 0);
+            });
+            const chipsEl = document.getElementById('funderNamesHighlight');
+            if (!chipsEl) return;
+            const top = sorted.slice(0, 10);
+            chipsEl.innerHTML = top.length
+                ? top.map((f, i) => {
+                    const c   = CHIP_COLORS[i % CHIP_COLORS.length];
+                    const amt = parseFloat(f.numeric_mm65vv1m || 0);
+                    const amtStr = amt > 0 ? ` — ${fmt$(amt)}` : '';
+                    return `<span style="background:${c}18;color:${c};border:1px solid ${c}35;padding:7px 16px;border-radius:20px;font-size:13px;font-weight:600;line-height:1.6;">${f.name}${amtStr}</span>`;
+                }).join('')
+                : '<span style="color:#bdc3c7;font-size:13px;">No funders found</span>';
         }
 
         function renderFunderTable() {
             const funders = allData.funders;
             const stageOrder = ['Current Funder','Current Employer/Program Partner','Prospective Funder','Prospective Employer/Program Partner','Facilitator','Former Funder','Former Employer/Program Partner'];
-            const sortedFunders = [...funders].sort((a, b) => {
+            const sorted = [...funders].sort((a,b) => {
                 const ai = stageOrder.indexOf(a.color_mm65ah3h || '');
                 const bi = stageOrder.indexOf(b.color_mm65ah3h || '');
                 return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
             });
-
-            // Funder name chips in the contributions box
-            const chipsEl = document.getElementById('funderNamesHighlight');
-            if (chipsEl) {
-                const topFunders = sortedFunders.slice(0, 8);
-                chipsEl.innerHTML = topFunders.length
-                    ? topFunders.map((f, i) => {
-                        const c = CHIP_COLORS[i % CHIP_COLORS.length];
-                        const amt = parseFloat(f.numeric_mm65vv1m || 0);
-                        const amtStr = amt > 0 ? ` · $${amt >= 1000 ? (amt/1000).toFixed(0)+'K' : amt.toLocaleString()}` : '';
-                        return `<span style="background:${c}18;color:${c};border:1px solid ${c}35;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:600;">${f.name}${amtStr}</span>`;
-                    }).join('')
-                    : '<span style="color:#bdc3c7;font-size:13px;">No funders found</span>';
-            }
-
-            document.getElementById('donationTableBody').innerHTML = sortedFunders.map(f => {
-                const amt = parseFloat(f.numeric_mm65vv1m || 0);
-                const amtDisplay = amt > 0 ? '$' + amt.toLocaleString() : '—';
-                return `<tr>
-                    <td><strong>${f.name}</strong></td>
-                    <td>${f.dropdown_mm658e0s || '-'}</td>
-                    <td>${amtDisplay}</td>
-                    <td>${f.color_mm65ah3h || '-'}</td>
-                </tr>`;
-            }).join('');
+            document.getElementById('donationTableBody').innerHTML = sorted.length
+                ? sorted.map(f => {
+                    const amt = parseFloat(f.numeric_mm65vv1m || 0);
+                    return `<tr>
+                        <td><strong>${f.name}</strong></td>
+                        <td>${f.dropdown_mm658e0s || '—'}</td>
+                        <td>${amt > 0 ? '$' + amt.toLocaleString() : '—'}</td>
+                        <td>${f.color_mm65ah3h || '—'}</td>
+                    </tr>`;
+                }).join('')
+                : '<tr><td colspan="4" style="text-align:center;color:#bdc3c7;padding:20px;">No funder data</td></tr>';
         }
 
         function renderStrategicGoals2028() {
