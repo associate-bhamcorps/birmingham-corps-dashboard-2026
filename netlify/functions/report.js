@@ -198,12 +198,24 @@ exports.handler = async (event) => {
     border-top: 1px solid #ecf0f1; margin-top: 20px;
   }
 
+  .edit-hint { font-size:12px; color:#95a5a6; font-style:italic; font-weight:400; margin-left:8px; }
+  .editable-cell {
+    min-height: 48px; cursor: text; outline: none;
+    padding: 11px 14px; vertical-align: top;
+    border-left: 3px solid transparent; transition: border-color 0.2s;
+  }
+  .editable-cell:focus { border-left-color: #e74c3c; background: #fffbf9; outline: none; }
+  .editable-cell:empty::before { content: attr(data-placeholder); color: #bdc3c7; font-style: italic; pointer-events: none; }
+
   @media print {
     .no-print { display: none !important; }
+    .edit-hint { display: none !important; }
     body { background: white; }
     .section { box-shadow: none; border: 1px solid #ddd; }
     .report-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .kpi-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .editable-cell { border-left: none; background: transparent !important; }
+    .editable-cell:empty::before { display: none; }
   }
 </style>
 </head>
@@ -333,13 +345,28 @@ renderPicker();
 
   <!-- HIGHLIGHTS & NEXT STEPS -->
   <div class="section">
-    <div class="section-title">🌟 Highlights & Next Steps</div>
+    <div class="section-title">🌟 Highlights &amp; Next Steps
+      <span class="edit-hint no-print">— click any row below to type before saving as PDF</span>
+    </div>
     <table>
-      <thead><tr><th>Category</th><th>Notes</th></tr></thead>
+      <thead><tr><th style="width:220px;">Category</th><th>Notes</th></tr></thead>
       <tbody>
-        <tr><td><strong>Highlights & Wins</strong></td><td style="color:#7f8c8d;font-style:italic;">[Add highlights here]</td></tr>
-        <tr><td><strong>Challenges</strong></td><td style="color:#7f8c8d;font-style:italic;">[Add challenges here]</td></tr>
-        <tr><td><strong>Goals for Next Month</strong></td><td style="color:#7f8c8d;font-style:italic;">[Add goals here]</td></tr>
+        <tr>
+          <td><strong>✅ Highlights &amp; Wins</strong></td>
+          <td class="editable-cell" contenteditable="true" data-placeholder="Click here to add highlights and wins for ${monthName}…"></td>
+        </tr>
+        <tr>
+          <td><strong>⚠️ Challenges</strong></td>
+          <td class="editable-cell" contenteditable="true" data-placeholder="Click here to add challenges faced this month…"></td>
+        </tr>
+        <tr>
+          <td><strong>🎯 Goals for Next Month</strong></td>
+          <td class="editable-cell" contenteditable="true" data-placeholder="Click here to add goals for next month…"></td>
+        </tr>
+        <tr>
+          <td><strong>📣 Shoutouts &amp; Recognition</strong></td>
+          <td class="editable-cell" contenteditable="true" data-placeholder="Click here to recognize team members, partners, or funders…"></td>
+        </tr>
       </tbody>
     </table>
   </div>
