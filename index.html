@@ -241,11 +241,22 @@
         <!-- MARKETING TAB -->
         <div id="marketing" class="tab-content">
             <div class="section">
+                <div style="background:#2c3e50;border-radius:8px;padding:14px 18px;margin-bottom:20px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+                        <span style="color:white;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Filter by Month</span>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <button onclick="adjMktYear(-1)" style="background:rgba(255,255,255,0.15);color:white;border:none;padding:4px 11px;border-radius:5px;cursor:pointer;font-size:14px;font-weight:700;">◀</button>
+                            <span id="mktYearLabel" style="color:white;font-size:15px;font-weight:700;min-width:44px;text-align:center;"></span>
+                            <button onclick="adjMktYear(1)" style="background:rgba(255,255,255,0.15);color:white;border:none;padding:4px 11px;border-radius:5px;cursor:pointer;font-size:14px;font-weight:700;">▶</button>
+                        </div>
+                    </div>
+                    <div id="mktMonthPicker" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+                </div>
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
                     <div class="section-title" style="margin-bottom:0;">Newsletters</div>
                     <div style="text-align:right;">
                         <div id="newsletterTotalCount" style="font-size:36px;font-weight:800;color:#3498db;line-height:1;">—</div>
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#7f8c8d;margin-top:2px;">Total Newsletter Subs This Quarter</div>
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#7f8c8d;margin-top:2px;">Newsletter Total Monthly Subs</div>
                     </div>
                 </div>
                 <table><thead><tr><th>Newsletter</th><th>Sent</th></tr></thead>
@@ -937,21 +948,57 @@
             }).join('');
         }
 
+        const MKT_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        let mktSelMonth = new Date().getMonth();
+        let mktSelYear  = new Date().getFullYear();
+        let mktViewYear = new Date().getFullYear();
+
+        function renderMktPicker() {
+            const yrEl = document.getElementById('mktYearLabel');
+            const pickerEl = document.getElementById('mktMonthPicker');
+            if (!yrEl || !pickerEl) return;
+            yrEl.textContent = mktViewYear;
+            pickerEl.innerHTML = MKT_MONTHS.map((m, i) => {
+                const active = (i === mktSelMonth && mktViewYear === mktSelYear);
+                return `<button onclick="setMktMonth(${i})" style="background:${active ? '#e74c3c' : 'rgba(255,255,255,0.12)'};color:white;border:none;padding:6px 13px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:${active ? '700' : '500'};">${active ? '✓ ' : ''}${m}</button>`;
+            }).join('');
+        }
+
+        function adjMktYear(d) { mktViewYear += d; renderMktPicker(); }
+
+        function setMktMonth(i) {
+            mktSelMonth = i;
+            mktSelYear  = mktViewYear;
+            renderMktPicker();
+            renderMarketingStats();
+            renderMarketingCampaigns();
+        }
+
+        function getFilteredMarketing() {
+            return allData.marketing.filter(m => {
+                const d = m.date_mm33s7em || '';
+                if (!d) return false;
+                const parts = d.split('-');
+                return parseInt(parts[0]) === mktSelYear && parseInt(parts[1]) === (mktSelMonth + 1);
+            });
+        }
+
         function renderMarketingStats() {
-            const data = allData.marketing;
+            renderMktPicker();
+            const data = getFilteredMarketing();
             const totalSent = data.reduce((s, m) => s + (parseFloat(m.numeric_mm6557x3) || 0), 0);
             const el = document.getElementById('newsletterTotalCount');
             if (el) el.textContent = totalSent.toLocaleString();
         }
 
         function renderMarketingCampaigns() {
-            const data = allData.marketing;
+            const data = getFilteredMarketing();
             document.getElementById('newsletterTableBody').innerHTML = data.length
                 ? data.map(m => `<tr>
                     <td><strong>${m.dropdown_mm65ztx6 || m.name}</strong></td>
                     <td>${parseInt(m.numeric_mm6557x3 || 0)}</td>
                 </tr>`).join('')
-                : '<tr><td colspan="2" style="text-align:center;color:#bdc3c7;padding:20px;">No newsletters logged yet</td></tr>';
+                : '<tr><td colspan="2" style="text-align:center;color:#bdc3c7;padding:20px;">No newsletters logged for this month</td></tr>';
         }
 
 
@@ -980,7 +1027,7 @@
                 <div class="breakdown-card" style="border-color:var(--warning)">
                     <h4>📢 Marketing Metrics</h4>
                     <ul class="breakdown-list">
-                        <li class="breakdown-item"><span>Total Newsletter Subs This Quarter</span><span>${totalSent.toLocaleString()}</span></li>
+                        <li class="breakdown-item"><span>Newsletter Total Monthly Subs</span><span>${totalSent.toLocaleString()}</span></li>
                     </ul>
                 </div>
             `;
