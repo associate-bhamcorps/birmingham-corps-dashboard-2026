@@ -209,11 +209,45 @@ exports.handler = async (event) => {
 </head>
 <body>
 
-<div class="no-print">
-  📋 Preview Mode —
-  <button onclick="window.print()">🖨️ Save as PDF / Print</button>
-  <button onclick="window.location.reload()" style="background:rgba(255,255,255,0.2);color:white;margin-left:8px;">↻ Refresh Data</button>
+<div class="no-print" style="padding:0;">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 24px;flex-wrap:wrap;gap:10px;">
+    <div>
+      📋 Preview Mode &nbsp;
+      <button onclick="window.print()">🖨️ Save as PDF / Print</button>
+      <button onclick="window.location.reload()" style="background:rgba(255,255,255,0.2);color:white;margin-left:8px;">↻ Refresh</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:13px;opacity:0.85;">Select month:</span>
+      <button onclick="adjYear(-1)" style="background:rgba(255,255,255,0.2);color:white;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:15px;font-weight:700;">◀</button>
+      <span id="yrLabel" style="font-size:15px;font-weight:700;min-width:46px;text-align:center;">${year}</span>
+      <button onclick="adjYear(1)" style="background:rgba(255,255,255,0.2);color:white;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:15px;font-weight:700;">▶</button>
+    </div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 24px 14px;" id="mPicker"></div>
 </div>
+<script>
+var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+var vYear=parseInt('${year}');
+var selMonth='${monthName}';
+var selYear=parseInt('${year}');
+function renderPicker(){
+  var el=document.getElementById('mPicker');
+  el.innerHTML=MONTHS.map(function(m){
+    var active=(m===selMonth&&vYear===selYear);
+    return '<button onclick="goMonth(\''+m+'\')" style="'+
+      'background:'+(active?'white':'rgba(255,255,255,0.15)')+';'+
+      'color:'+(active?'#e74c3c':'white')+';'+
+      'border:none;padding:7px 15px;border-radius:20px;cursor:pointer;'+
+      'font-size:13px;font-weight:'+(active?'700':'500')+';'+
+      'transition:all 0.15s;">'+
+      (active?'✓ ':'')+m+
+    '</button>';
+  }).join('');
+}
+function adjYear(d){vYear+=d;document.getElementById('yrLabel').textContent=vYear;renderPicker();}
+function goMonth(m){window.location.href='/.netlify/functions/report?month='+m+'&year='+vYear;}
+renderPicker();
+</script>
 
 <div class="report-header">
   <div class="header-left">
