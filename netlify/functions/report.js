@@ -69,15 +69,19 @@ exports.handler = async (event) => {
   }
 
   // Participant metrics
+  function getStatusLabel(raw) {
+    if (!raw || !raw.trim()) return 'Not Set';
+    const r = raw.trim().toLowerCase();
+    if (r.includes('alumni') || r.includes('completed')) return 'Alumni';
+    if (r.includes('active') || r.includes('enrolled')) return 'Active';
+    return raw;
+  }
   const totalParticipants = participants.length;
-  const activeParticipants = participants.filter(p => {
-    const s = (p.color_mm28tqgd || '').toLowerCase();
-    return s.includes('active') || s.includes('enrolled');
-  }).length;
-  const alumniParticipants = participants.filter(p => {
-    const s = (p.color_mm28tqgd || '').toLowerCase();
-    return s.includes('alumni') || s.includes('completed');
-  }).length;
+  const activeParticipants = participants.filter(p => getStatusLabel(p.color_mm28tqgd) === 'Active').length;
+  const activeCorpsMembers = participants.filter(p =>
+    (p.color_mm2ybdsg || '').toLowerCase().includes('americorps') &&
+    getStatusLabel(p.color_mm28tqgd) === 'Active'
+  ).length;
 
   const programCounts = {};
   participants.forEach(p => {
@@ -228,12 +232,12 @@ exports.handler = async (event) => {
   <div class="section">
     <div class="section-title">📋 Executive Summary</div>
     <div class="kpi-grid">
-      <div class="kpi-card blue"><div class="kpi-value">${totalParticipants}</div><div class="kpi-label">Total Participants</div></div>
-      <div class="kpi-card green"><div class="kpi-value">${activeParticipants}</div><div class="kpi-label">Active Participants</div></div>
-      <div class="kpi-card red"><div class="kpi-value">${alumniParticipants}</div><div class="kpi-label">Alumni / Completed</div></div>
-      <div class="kpi-card purple"><div class="kpi-value">${totalPartners}</div><div class="kpi-label">Program Partners</div></div>
-      <div class="kpi-card orange"><div class="kpi-value">$${(totalRaised/1000).toFixed(0)}K</div><div class="kpi-label">Funds Raised (ex. AmeriCorps)</div></div>
-      <div class="kpi-card teal"><div class="kpi-value">${totalFunders}</div><div class="kpi-label">Total Funders</div></div>
+      <div class="kpi-card blue"><div class="kpi-value">${totalParticipants}</div><div class="kpi-label">Total Program Participants Of All Time</div></div>
+      <div class="kpi-card green"><div class="kpi-value">${activeParticipants}</div><div class="kpi-label">Active Participant Quarterly</div></div>
+      <div class="kpi-card red"><div class="kpi-value">${activeCorpsMembers}</div><div class="kpi-label">Total Active Corps Collective Members</div></div>
+      <div class="kpi-card purple"><div class="kpi-value">${totalPartners}</div><div class="kpi-label">Total Partners Of All Time</div></div>
+      <div class="kpi-card orange"><div class="kpi-value">$${(totalRaised/1000).toFixed(0)}K</div><div class="kpi-label">Total Funds Yr. To Date Raised (Calendar Year Jan 1–Dec 1)</div></div>
+      <div class="kpi-card teal"><div class="kpi-value">${totalFunders}</div><div class="kpi-label">Total Funders Of All Time</div></div>
     </div>
   </div>
 
@@ -252,7 +256,7 @@ exports.handler = async (event) => {
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px;">
       <div style="background:#f0faf4;padding:18px;border-radius:8px;text-align:center;">
         <div style="font-size:28px;font-weight:900;color:#27ae60;">${totalPartners}</div>
-        <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Partners</div>
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Partners Of All Time</div>
       </div>
       <div style="background:#f0f4fe;padding:18px;border-radius:8px;text-align:center;">
         <div style="font-size:28px;font-weight:900;color:#3498db;">${activePartners}</div>
@@ -271,11 +275,11 @@ exports.handler = async (event) => {
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px;">
       <div style="background:#fef9f0;padding:18px;border-radius:8px;text-align:center;">
         <div style="font-size:28px;font-weight:900;color:#f39c12;">${totalFunders}</div>
-        <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Funders</div>
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Funders Of All Time</div>
       </div>
       <div style="background:#f0faf4;padding:18px;border-radius:8px;text-align:center;">
         <div style="font-size:28px;font-weight:900;color:#27ae60;">$${totalRaised.toLocaleString()}</div>
-        <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Raised (ex. AmeriCorps)</div>
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Funds Yr. To Date Raised (Calendar Year Jan 1–Dec 1)</div>
       </div>
     </div>
     <table>
@@ -289,7 +293,7 @@ exports.handler = async (event) => {
     <div class="section-title">📢 Marketing & Outreach</div>
     <div style="background:#f0f4fe;padding:18px;border-radius:8px;text-align:center;margin-bottom:20px;display:inline-block;min-width:180px;">
       <div style="font-size:32px;font-weight:900;color:#3498db;">${totalNewsletterSent.toLocaleString()}</div>
-      <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Newsletter Subscribers This Quarter</div>
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Newsletter Subs This Quarter</div>
     </div>
   </div>
 
