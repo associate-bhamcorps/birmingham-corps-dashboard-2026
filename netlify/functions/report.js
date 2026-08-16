@@ -293,7 +293,7 @@ exports.handler = async (event) => {
     <div class="section-title">📢 Marketing & Outreach</div>
     <div style="background:#f0f4fe;padding:18px;border-radius:8px;text-align:center;margin-bottom:20px;display:inline-block;min-width:180px;">
       <div style="font-size:32px;font-weight:900;color:#3498db;">${totalNewsletterSent.toLocaleString()}</div>
-      <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Newsletter Subs This Quarter</div>
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Newsletter Subs This Month</div>
     </div>
   </div>
 
