@@ -268,7 +268,7 @@
             </div>
             <div class="section">
                 <div class="section-title">🎯 2028 Strategic Goals — Milestone Tracker</div>
-                <p style="font-size:13px;color:#7f8c8d;margin-bottom:28px;">Tracking Birmingham Corps's progress toward 2028 impact milestones. Update targets below in the <code style="background:#f4f6fa;padding:2px 6px;border-radius:4px;">GOALS_2028</code> constant to match your official strategic plan.</p>
+                <p style="font-size:13px;color:#7f8c8d;margin-bottom:28px;">Tracking Birmingham Corps's progress toward 2028 impact milestones. To edit these goals, targets, or wording, open the <strong>Dashboard Control Panel</strong> board in Monday.com and edit group 5 — no code changes needed.</p>
                 <div id="strategicGoals2028"></div>
             </div>
         </div>
@@ -861,6 +861,29 @@
                 : '<tr><td colspan="4" style="text-align:center;color:#bdc3c7;padding:20px;">No funder data</td></tr>';
         }
 
+        // The strategic plan staff see if the Control Panel board can't be read.
+        // Group 5 of that board is loaded with these same goals, so the two match.
+        const GOALS_2028_FALLBACK = [
+            { icon: '👥', label: 'Recruit, train & retain residents through integrated workforce programming', metric: 'activeResidents', target: 40, targetShown: '40 residents', detail: '' },
+            { icon: '📈', label: 'Raise $750K through grants, events & donor outreach toward $2M long-term goal', metric: 'fundsRaised', target: 750000, targetShown: '$750K', detail: '' },
+            { icon: '🛤️', label: 'Launch 3 new pathway-based partnerships', metric: null, target: null, targetShown: '3 Partnerships', detail: 'Healthcare · Education · Neighborhood Revitalization tracks' },
+            { icon: '🏢', label: 'Host 2 employer partner roundtables', metric: null, target: null, targetShown: '2 Roundtables', detail: 'Gather feedback to improve placement quality' },
+            { icon: '💼', label: 'Increase job placements by 15%', metric: null, target: null, targetShown: '60% Retention', detail: 'Reaching a 60% job retention rate at the 6-month mark' },
+            { icon: '🌐', label: 'Strengthen employer & community engagement', metric: null, target: null, targetShown: 'Monthly · Quarterly', detail: 'Monthly touchpoints and quarterly convenings' },
+        ];
+
+        // Goal text is typed by staff in Monday.com, so it must be escaped before
+        // it goes anywhere near innerHTML.
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // Money metrics display as $750K rather than 750,000
+        const GOAL_MONEY_METRICS = ['fundsRaised'];
+        const GOAL_COLORS = ['#3498db', '#8e44ad', '#16a085', '#d35400', '#2980b9', '#c0392b'];
+
         function renderStrategicGoals2028() {
             const p = allData.participants, pa = allData.partners, fu = allData.funders;
             const activeResidents = p.filter(x =>
@@ -870,31 +893,49 @@
             const fundsRaised = fu.filter(f => !isAmeriCorpsFunder(f))
                 .reduce((s, f) => s + (parseFloat(f.numeric_mm65vv1m) || 0), 0);
 
-            const tracked = [
-                {
-                    label: 'Recruit, train & retain residents through integrated workforce programming',
-                    icon: '👥', target: 40, current: activeResidents, color: '#3498db',
-                    format: v => v + ' residents', targetDisplay: '40 residents'
-                },
-                {
-                    label: 'Raise $750K through grants, events & donor outreach toward $2M long-term goal',
-                    icon: '📈', target: 750000, current: fundsRaised, color: '#8e44ad',
-                    format: v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'K' : v.toLocaleString()),
-                    targetDisplay: '$750K'
-                },
-            ];
+            const metricValues = {
+                activeResidents:   activeResidents,
+                fundsRaised:       fundsRaised,
+                totalParticipants: p.length,
+                totalPartners:     pa.length,
+                totalFunders:      fu.length
+            };
 
-            const milestones = [
-                { icon: '🛤️', label: 'Launch 3 new pathway-based partnerships', detail: 'Healthcare · Education · Neighborhood Revitalization tracks', target: '3 Partnerships' },
-                { icon: '🏢', label: 'Host 2 employer partner roundtables', detail: 'Gather feedback to improve placement quality', target: '2 Roundtables' },
-                { icon: '💼', label: 'Increase job placements by 15%', detail: 'Reaching a 60% job retention rate at the 6-month mark', target: '60% Retention' },
-                { icon: '🌐', label: 'Strengthen employer & community engagement', detail: 'Monthly touchpoints and quarterly convenings', target: 'Monthly · Quarterly' },
-            ];
+            // Only trust the board's goal list when the board was actually read (ok).
+            // Otherwise show the built-in plan rather than an empty section.
+            const goals = (dashboardConfig && dashboardConfig.ok && Array.isArray(dashboardConfig.goals))
+                ? dashboardConfig.goals
+                : GOALS_2028_FALLBACK;
+
+            const money = v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'K' : v.toLocaleString());
+
+            const tracked = [], milestones = [];
+            goals.forEach((g, i) => {
+                if (g.metric && g.target > 0 && metricValues[g.metric] !== undefined) {
+                    const isMoney = GOAL_MONEY_METRICS.indexOf(g.metric) !== -1;
+                    tracked.push({
+                        label: g.label,
+                        icon: g.icon || '🎯',
+                        target: g.target,
+                        current: metricValues[g.metric],
+                        color: GOAL_COLORS[i % GOAL_COLORS.length],
+                        format: v => isMoney ? money(v) : v.toLocaleString(),
+                        targetDisplay: g.targetShown || (isMoney ? money(g.target) : g.target.toLocaleString())
+                    });
+                } else {
+                    milestones.push({
+                        icon: g.icon || '🎯',
+                        label: g.label,
+                        detail: g.detail || '',
+                        target: g.targetShown || ''
+                    });
+                }
+            });
 
             const el = document.getElementById('strategicGoals2028');
             if (!el) return;
 
-            const trackedHTML = `
+            const trackedHTML = !tracked.length ? '' : `
                 <div style="margin-bottom:28px;">
                     <div style="font-size:12px;font-weight:700;color:#7f8c8d;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Live Data — Tracked Against Goal</div>
                     ${tracked.map(g => {
@@ -902,10 +943,10 @@
                         const statusColor = pct >= 100 ? '#27ae60' : pct >= 50 ? '#f39c12' : '#e74c3c';
                         return `<div style="margin-bottom:22px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-                                <span style="font-weight:700;font-size:14px;color:#2c3e50;">${g.icon} ${g.label}</span>
+                                <span style="font-weight:700;font-size:14px;color:#2c3e50;">${escapeHtml(g.icon)} ${escapeHtml(g.label)}</span>
                                 <span style="display:flex;align-items:center;gap:8px;font-size:13px;color:#7f8c8d;">
-                                    <strong style="color:${g.color};font-size:17px;">${g.format(g.current)}</strong>
-                                    <span>of ${g.targetDisplay}</span>
+                                    <strong style="color:${g.color};font-size:17px;">${escapeHtml(g.format(g.current))}</strong>
+                                    <span>of ${escapeHtml(g.targetDisplay)}</span>
                                     <span style="background:${statusColor}22;color:${statusColor};padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;">${pct}%</span>
                                 </span>
                             </div>
@@ -916,22 +957,26 @@
                     }).join('')}
                 </div>`;
 
-            const milestonesHTML = `
+            const milestonesHTML = !milestones.length ? '' : `
                 <div>
                     <div style="font-size:12px;font-weight:700;color:#7f8c8d;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Strategic Milestones — Tracked Manually</div>
                     ${milestones.map(m => `
                         <div style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:#f9f9f9;border-radius:8px;margin-bottom:10px;border-left:3px solid #bdc3c7;">
-                            <span style="font-size:20px;margin-top:1px;">${m.icon}</span>
+                            <span style="font-size:20px;margin-top:1px;">${escapeHtml(m.icon)}</span>
                             <div style="flex:1;">
-                                <div style="font-size:14px;font-weight:700;color:#2c3e50;">${m.label}</div>
-                                <div style="font-size:12px;color:#7f8c8d;margin-top:3px;">${m.detail}</div>
+                                <div style="font-size:14px;font-weight:700;color:#2c3e50;">${escapeHtml(m.label)}</div>
+                                ${m.detail ? `<div style="font-size:12px;color:#7f8c8d;margin-top:3px;">${escapeHtml(m.detail)}</div>` : ''}
                             </div>
-                            <span style="background:#ecf0f1;color:#7f8c8d;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap;margin-top:2px;">${m.target}</span>
+                            ${m.target ? `<span style="background:#ecf0f1;color:#7f8c8d;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap;margin-top:2px;">${escapeHtml(m.target)}</span>` : ''}
                         </div>`).join('')}
-                </div>
-                <p style="font-size:11px;color:#bdc3c7;margin-top:16px;">* Live progress bars pull from monday.com data. Milestone items require manual status updates.</p>`;
+                </div>`;
 
-            el.innerHTML = trackedHTML + milestonesHTML;
+            const footnote = tracked.length
+                ? '<p style="font-size:11px;color:#bdc3c7;margin-top:16px;">* Live progress bars pull from monday.com data. Milestone items require manual status updates.</p>'
+                : '';
+
+            el.innerHTML = (trackedHTML + milestonesHTML + footnote)
+                || '<p style="color:#bdc3c7;font-size:13px;">No strategic goals are set to Show on the Dashboard Control Panel board.</p>';
         }
 
         function renderFunderBreakdown() {

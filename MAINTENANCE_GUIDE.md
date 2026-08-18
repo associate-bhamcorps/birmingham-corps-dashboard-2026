@@ -70,6 +70,26 @@ top of that tab. (Duplicate the EXAMPLE row if you'd rather start from a copy.)
 > These are numbers you type in by hand — they do not update themselves. For numbers that
 > should update automatically from your data, ask a developer to add them properly.
 
+### 5. 2028 STRATEGIC GOALS — your strategic plan
+These rows **are** the 2028 Strategic Goals section on the Management Overview tab. Edit them
+whenever the strategic plan changes. All six current goals are already there.
+
+| To do this… | Do this |
+|-------------|---------|
+| Reword a goal | Edit the row name. An emoji at the front becomes the icon on the dashboard |
+| Change a target | Edit **Number** (the full figure, e.g. `750000`) and **Target Shown** (how it reads, e.g. `$750K`) |
+| Add a goal | **+ Add item**, set **Order**, pick **Track Against**, set **Show or Hide** to Show |
+| Remove a goal | Set **Show or Hide** to Hide — no need to delete the row |
+| Reorder goals | Change the **Order** numbers (1 shows first, 2 second, and so on) |
+
+**Progress bars.** Pick a live number in **Track Against** (like *Active Residents* or
+*Funds Raised*) and the goal gets a bar that fills in automatically from your Monday data — you
+never update the progress by hand, only the target. Pick *Nothing - track by hand* for a goal
+that's just a milestone with no bar.
+
+> A goal only gets a progress bar if it has **both** a Track Against metric **and** a Number
+> target above zero. If a bar doesn't appear, one of those two is missing.
+
 ### If something looks wrong
 Undo your change in the Control Panel board and refresh the dashboard. **Nothing you do on
 this board can break the dashboard** — if the board can't be read for any reason, the
@@ -150,7 +170,7 @@ The tech stack is intentionally simple: plain HTML, CSS, and JavaScript — no f
 | Task | When | How |
 |------|------|-----|
 | Rotate Monday.com API key | If dashboard stops loading | See "If the dashboard stops loading" above |
-| Update 2028 strategic goal targets | When targets change | Ask Claude to update the `GOALS_2028` constant in `index.html` |
+| Update 2028 strategic goal targets | When targets change | Edit group 5 of the Dashboard Control Panel board — no code needed |
 | Archive old Monday.com items | Annually | In Monday.com — doesn't affect the dashboard until items are deleted |
 | Review Netlify plan | Annually | app.netlify.com — free tier covers this project's usage |
 

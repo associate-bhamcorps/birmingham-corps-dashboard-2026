@@ -66,10 +66,27 @@ code keys off the leading digit of the group title, so groups can be renamed saf
 | `2. SHOW OR HIDE` | Row name = tab or section name, `Show or Hide` = Hide removes it |
 | `3. ANNOUNCEMENT BANNER` | `Banner Message` + `Show` puts a banner across the top |
 | `4. EXTRA NUMBER CARDS` | Row name = card label, plus `Number` and `Which Tab` |
+| `5. 2028 STRATEGIC GOALS` | Row name = goal (leading emoji becomes the icon), `Number` = target, `Track Against` = live metric, `Order` = position |
 
 Columns: `text_mm6b63dr` New Wording · `color_mm6bjge9` Show or Hide ·
-`numeric_mm6bzdse` Number · `color_mm6be1bc` Which Tab ·
-`long_text_mm6b2x20` Banner Message · `long_text_mm6bg2y6` What This Row Does (help text only)
+`numeric_mm6bzdse` Number (extra-card value **and** goal target) · `color_mm6be1bc` Which Tab ·
+`long_text_mm6b2x20` Banner Message · `long_text_mm6bg2y6` What This Row Does (help text only) ·
+`color_mm6b7sk4` Track Against · `text_mm6be8bx` Goal Detail · `text_mm6b8ypy` Target Shown ·
+`numeric_mm6b9g24` Order
+
+### Strategic goals (group 5)
+A goal renders as a **live progress bar** only when it has both a `Track Against` metric and a
+`Number` target above zero; anything else renders as a hand-tracked milestone. The
+`Track Against` labels map to metrics in `GOAL_METRICS` (`dashboard-config.js`) and are computed
+in `metricValues` (`renderStrategicGoals2028()` in `index.html`) — **both must be updated
+together** to add a new trackable metric, and a new label must also be added to the column in
+Monday. Money formatting is driven by `GOAL_MONEY_METRICS`.
+
+The Monday API does **not** return items in board order, which is why group 5 has an explicit
+`Order` column. Blank order sorts to the bottom (999).
+
+`GOALS_2028_FALLBACK` in `index.html` mirrors the six goals seeded into group 5. It renders only
+when the control board could not be read (`ok: false`) — keep the two in sync if you edit either.
 
 ## Environment variables (set in Netlify)
 - `MONDAY_API_KEY` — Monday.com Personal API Token. If the dashboard shows "Not Authenticated", this needs to be refreshed in Netlify → Site configuration → Environment variables.
@@ -103,7 +120,11 @@ The `isAmeriCorpsFunder()` function in `index.html` checks if `dropdown_mm658e0s
 4. Add the board ID to `BOARD_IDS` in `monday-data.js`
 
 ### Update the 2028 strategic goals targets
-Search `index.html` for `GOALS_2028` — it's a constant array near `renderStrategicGoals2028()`. Change the `target` values to match the updated strategic plan.
+**No code change needed** — staff edit group 5 of the Dashboard Control Panel board. Change the
+`Number` column for the target and `Target Shown` for how it reads on screen.
+
+Only edit `GOALS_2028_FALLBACK` in `index.html` if the *fallback* plan should change (what shows
+when the control board can't be read). Keep it in sync with group 5.
 
 ### Add or remove a board from the Monthly Report
 Edit `netlify/functions/report.js`. The `BOARD_IDS` object at the top maps board names to IDs.

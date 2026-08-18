@@ -8,6 +8,7 @@
 //   Group starting "2." → show / hide a section (row name = tab or section name, "Show or Hide" = Hide)
 //   Group starting "3." → announcement banner   ("Banner Message" = text, "Show or Hide" = Show)
 //   Group starting "4." → extra number card     (row name = card label, "Number", "Which Tab")
+//   Group starting "5." → 2028 strategic goal   (row name = goal, "Number" = target, "Track Against")
 //
 // This endpoint NEVER throws in a way that breaks the dashboard — on any failure it
 // returns empty settings, and the dashboard renders exactly as it would without it.
@@ -17,11 +18,15 @@ const https = require('https');
 const CONTROL_BOARD_ID = 18427122467;
 
 const COL = {
-  newWording: 'text_mm6b63dr',
-  showHide:   'color_mm6bjge9',
-  number:     'numeric_mm6bzdse',
-  whichTab:   'color_mm6be1bc',
-  banner:     'long_text_mm6b2x20'
+  newWording:   'text_mm6b63dr',
+  showHide:     'color_mm6bjge9',
+  number:       'numeric_mm6bzdse',   // extra-card value, and strategic-goal target
+  whichTab:     'color_mm6be1bc',
+  banner:       'long_text_mm6b2x20',
+  trackAgainst: 'color_mm6b7sk4',
+  goalDetail:   'text_mm6be8bx',
+  targetShown:  'text_mm6b8ypy',
+  order:        'numeric_mm6b9g24'
 };
 
 const CORS = {
@@ -31,7 +36,10 @@ const CORS = {
   'Cache-Control': 'public, max-age=60'
 };
 
-const EMPTY = { renames: [], hide: [], banner: null, cards: [] };
+// `ok` tells the dashboard whether the board was actually read. It matters for the
+// strategic goals: "board read, zero goals" means staff hid them all and the section
+// should be empty, but "board unreadable" must fall back to the built-in plan.
+const EMPTY = { ok: false, renames: [], hide: [], banner: null, cards: [], goals: [] };
 
 function httpsPost(url, data, headers) {
   return new Promise((resolve, reject) => {
@@ -96,8 +104,24 @@ const TAB_KEYS = {
   'management': 'management'
 };
 
+// "Track Against" label → the live metric the dashboard fills the progress bar with.
+// Anything else (including "Nothing - track by hand" and blank) means no progress bar.
+const GOAL_METRICS = {
+  'active residents': 'activeResidents',
+  'funds raised': 'fundsRaised',
+  'total participants': 'totalParticipants',
+  'total partners': 'totalPartners',
+  'total funders': 'totalFunders'
+};
+
+// Splits a leading emoji off the row name: "👥 Recruit residents" → ["👥", "Recruit residents"]
+function splitIcon(name) {
+  const m = name.match(/^\s*([^\p{Letter}\p{Number}\s]+)\s+(.*)$/u);
+  return m && m[2].trim() ? { icon: m[1], label: m[2].trim() } : { icon: '', label: name };
+}
+
 function buildConfig(items) {
-  const cfg = { renames: [], hide: [], banner: null, cards: [] };
+  const cfg = { ok: true, renames: [], hide: [], banner: null, cards: [], goals: [] };
 
   items.forEach(row => {
     const kind = groupKind(row.group);
@@ -124,9 +148,28 @@ function buildConfig(items) {
       const tab = TAB_KEYS[(row[COL.whichTab] || '').trim().toLowerCase()];
       if (!tab) return;                       // no tab chosen → nothing to place
       cfg.cards.push({ label: name, value: raw, tab });
+
+    } else if (kind === '5') {
+      if ((row[COL.showHide] || '').toLowerCase() === 'hide') return;
+      const { icon, label } = splitIcon(name);
+      const target = parseFloat(row[COL.number]);
+      const metric = GOAL_METRICS[(row[COL.trackAgainst] || '').trim().toLowerCase()];
+      const order  = parseFloat(row[COL.order]);
+      cfg.goals.push({
+        label,
+        icon,
+        // A goal only gets a progress bar when it has both a live metric and a
+        // target above zero — otherwise it renders as a hand-tracked milestone.
+        metric: (metric && target > 0) ? metric : null,
+        target: target > 0 ? target : null,
+        detail: (row[COL.goalDetail] || '').trim(),
+        targetShown: (row[COL.targetShown] || '').trim(),
+        order: isNaN(order) ? 999 : order
+      });
     }
   });
 
+  cfg.goals.sort((a, b) => a.order - b.order);
   return cfg;
 }
 
