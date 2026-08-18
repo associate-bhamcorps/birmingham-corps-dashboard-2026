@@ -3,7 +3,7 @@
 This file helps AI tools (Claude Code, GitHub Copilot, etc.) understand this project so future maintainers can make changes by describing them in plain English.
 
 ## What this project is
-A live metrics dashboard at **dashboard.birminghamcorps.org** that pulls real-time data from Birmingham Corps's Monday.com CRM boards and displays it in a web dashboard with tabs for Participants, Partners, Funders, Marketing Performance, Management Overview, and a printable Monthly Report.
+A live metrics dashboard at **dashboard.birminghamcorps.org** that pulls real-time data from Birmingham Corps's Monday.com CRM boards and displays it in a web dashboard with tabs for Participants, Partners, Funders, Management Overview, Surveys, and a printable Monthly Report.
 
 ## How data flows
 ```
@@ -12,12 +12,16 @@ Monday.com boards → Netlify serverless function → Dashboard (index.html)
 1. `index.html` calls `/.netlify/functions/monday-data?board=<name>` for each tab
 2. The function (`netlify/functions/monday-data.js`) queries the Monday.com GraphQL API
 3. Data is rendered into stat cards, tables, charts, and chip highlights
+4. `index.html` also calls `/.netlify/functions/dashboard-config`, which reads the
+   **Dashboard Control Panel** board and applies staff's wording / show-hide / banner /
+   extra-card settings on top of what was just rendered
 
 ## Key files
 | File | Purpose |
 |------|---------|
 | `index.html` | The entire dashboard UI + all JavaScript |
 | `netlify/functions/monday-data.js` | Data proxy — fetches from Monday.com API |
+| `netlify/functions/dashboard-config.js` | Reads the Dashboard Control Panel board (staff-editable settings) |
 | `netlify/functions/report.js` | Monthly PDF report (opens at `/.netlify/functions/report`) |
 | `netlify/functions/health.js` | Health check endpoint at `/.netlify/functions/health` |
 | `netlify.toml` | Netlify build config (functions directory, redirects, headers) |
@@ -27,7 +31,7 @@ Monday.com boards → Netlify serverless function → Dashboard (index.html)
 participants: 18407896987  // Participants Professional Directory
 partners:     18426299137  // Partners CRM
 funders:      18426299125  // Funders CRM
-marketing:    18411541832  // Marketing Performance
+control:      18427122467  // Dashboard Control Panel (settings, not data)
 ```
 
 ## Monday.com Column IDs by board
@@ -52,11 +56,20 @@ marketing:    18411541832  // Marketing Performance
 - `numeric_mm658226` — Owed $
 - `numeric_mm67fc5e` — Received $
 
-### Marketing board (18411541832)
-- `date_mm33s7em` — Month (used to filter by month in the dashboard)
-- `numeric_mm6557x3` — Newsletters Sent
-- `dropdown_mm65ztx6` — Newsletter name
-- `dropdown_mm31wyzn` — Marketing Channels
+### Dashboard Control Panel board (18427122467)
+Staff-editable settings, **not** data. Which group a row is in decides what it does — the
+code keys off the leading digit of the group title, so groups can be renamed safely.
+
+| Group | Effect |
+|-------|--------|
+| `1. CHANGE WORDING` | Row name = current wording on the dashboard, `New Wording` = replacement |
+| `2. SHOW OR HIDE` | Row name = tab or section name, `Show or Hide` = Hide removes it |
+| `3. ANNOUNCEMENT BANNER` | `Banner Message` + `Show` puts a banner across the top |
+| `4. EXTRA NUMBER CARDS` | Row name = card label, plus `Number` and `Which Tab` |
+
+Columns: `text_mm6b63dr` New Wording · `color_mm6bjge9` Show or Hide ·
+`numeric_mm6bzdse` Number · `color_mm6be1bc` Which Tab ·
+`long_text_mm6b2x20` Banner Message · `long_text_mm6bg2y6` What This Row Does (help text only)
 
 ## Environment variables (set in Netlify)
 - `MONDAY_API_KEY` — Monday.com Personal API Token. If the dashboard shows "Not Authenticated", this needs to be refreshed in Netlify → Site configuration → Environment variables.
@@ -66,8 +79,19 @@ Push to the `main` branch on GitHub → Netlify auto-deploys within ~1 minute. N
 
 ## Common change requests and where to make them
 
-### Rename a stat card label
-Search `index.html` for the current label text and replace it. Labels are in `renderParticipantStats()`, `renderPartnerStats()`, `renderFunderStats()`, `renderMarketingStats()`.
+### Rename a stat card label or heading
+**Usually no code change is needed** — staff can do this themselves in the Dashboard Control
+Panel board (group 1). Only edit code if the label needs to change permanently in the source.
+Labels live in `renderParticipantStats()`, `renderPartnerStats()`, `renderFunderStats()`, and
+in the tab buttons / `.section-title` elements.
+
+If you rename a label in the code, update the matching row name in group 1 and group 2 of the
+Dashboard Control Panel board too, or those rows will silently stop matching anything.
+
+### Add a new controllable label
+Anything matching `CFG_LABEL_SELECTORS` in `index.html` (`.tab-btn`, `.section-title`,
+`.stat-label`, `th`, `h4`, `.breakdown-item > span:first-child`) is renameable from Monday
+with no code change — just add a row to group 1 whose name is the current wording.
 
 ### Change which AmeriCorps funders are excluded from fund totals
 The `isAmeriCorpsFunder()` function in `index.html` checks if `dropdown_mm658e0s` contains "americorps". Update that string if the funder type label changes in Monday.com.
@@ -93,5 +117,11 @@ Edit `netlify/functions/report.js`. The `BOARD_IDS` object at the top maps board
 ## Architecture notes
 - `Promise.allSettled` is used in `initDashboard()` so if one board fails, others still load
 - AmeriCorps funds are excluded from the "Total Funds YTD" stat by checking `isAmeriCorpsFunder()`
-- The Marketing tab filters by month using the `date_mm33s7em` column on each marketing item
+- `applyDashboardConfig()` runs **last** in `updateAllSections()` because it edits the DOM the
+  render functions just produced. Anything that re-renders a container must run before it.
+- Control Panel matching is deliberately loose (`normalizeLabel()` ignores emoji, punctuation,
+  dash style, and capitalization) so staff don't have to type labels exactly
+- Hides are applied before renames, so a "Hide" row still matches the original wording
+- `dashboard-config.js` never returns an error status — on any failure it returns empty
+  settings so a Monday outage or a bad API key can't take the dashboard down
 - The Monthly Report highlights section is `contenteditable` — staff type directly before printing

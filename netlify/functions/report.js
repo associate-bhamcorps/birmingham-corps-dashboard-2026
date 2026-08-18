@@ -7,8 +7,7 @@ const https = require('https');
 const BOARD_IDS = {
   participants: 18407896987,
   partners:     18426299137,  // Partners CRM
-  funders:      18426299125,  // Funders CRM
-  marketing:    18411541832
+  funders:      18426299125   // Funders CRM
 };
 
 function httpsPost(url, data, headers) {
@@ -56,13 +55,12 @@ exports.handler = async (event) => {
   const monthName = params.month || now.toLocaleString('en-US', { month: 'long', timeZone: 'America/Chicago' });
   const year = params.year || now.getFullYear();
 
-  let participants, partners, funders, marketing;
+  let participants, partners, funders;
   try {
-    [participants, partners, funders, marketing] = await Promise.all([
+    [participants, partners, funders] = await Promise.all([
       fetchBoard('participants', apiKey),
       fetchBoard('partners', apiKey),
-      fetchBoard('funders', apiKey),
-      fetchBoard('marketing', apiKey)
+      fetchBoard('funders', apiKey)
     ]);
   } catch (err) {
     return { statusCode: 500, body: `Error loading data: ${err.message}` };
@@ -108,10 +106,6 @@ exports.handler = async (event) => {
     .sort((a, b) => (parseFloat(b.numeric_mm65vv1m) || 0) - (parseFloat(a.numeric_mm65vv1m) || 0))
     .slice(0, 5);
 
-  // Marketing metrics
-  const totalCampaigns = marketing.length;
-  const totalNewsletterSent = marketing.reduce((s, m) => s + (parseFloat(m.numeric_mm6557x3) || 0), 0);
-
   // HTML rows
   const programRows = Object.entries(programCounts)
     .sort(([,a],[,b]) => b - a)
@@ -122,7 +116,6 @@ exports.handler = async (event) => {
     <tr>
       <td>${p.name}</td>
       <td>${p.dropdown_mm651r0a || '—'}</td>
-      <td>$${parseFloat(p.numeric_mm65xnm6 || 0).toLocaleString()}</td>
       <td>${p.color_mm65tnts || '—'}</td>
     </tr>`).join('');
 
@@ -298,7 +291,7 @@ renderPicker();
 
   <!-- PARTNERS -->
   <div class="section">
-    <div class="section-title">🤝 Program Partners (Top 5)</div>
+    <div class="section-title">🤝 Community Partners (Top 5)</div>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px;">
       <div style="background:#f0faf4;padding:18px;border-radius:8px;text-align:center;">
         <div style="font-size:28px;font-weight:900;color:#27ae60;">${totalPartners}</div>
@@ -310,8 +303,8 @@ renderPicker();
       </div>
     </div>
     <table>
-      <thead><tr><th>Partner Name</th><th>Type</th><th>Contract Amount</th><th>Relationship Stage</th></tr></thead>
-      <tbody>${partnerRows || '<tr><td colspan="4" style="color:#bdc3c7;text-align:center;">No partner data</td></tr>'}</tbody>
+      <thead><tr><th>Partner Name</th><th>Type</th><th>Relationship Stage</th></tr></thead>
+      <tbody>${partnerRows || '<tr><td colspan="3" style="color:#bdc3c7;text-align:center;">No partner data</td></tr>'}</tbody>
     </table>
   </div>
 
@@ -332,15 +325,6 @@ renderPicker();
       <thead><tr><th>Funder Name</th><th>Grant / Contract Amount</th><th>Relationship Stage</th></tr></thead>
       <tbody>${funderRows || '<tr><td colspan="3" style="color:#bdc3c7;text-align:center;">No funder data</td></tr>'}</tbody>
     </table>
-  </div>
-
-  <!-- MARKETING -->
-  <div class="section">
-    <div class="section-title">📢 Marketing & Outreach</div>
-    <div style="background:#f0f4fe;padding:18px;border-radius:8px;text-align:center;margin-bottom:20px;display:inline-block;min-width:180px;">
-      <div style="font-size:32px;font-weight:900;color:#3498db;">${totalNewsletterSent.toLocaleString()}</div>
-      <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7f8c8d;margin-top:4px;">Total Newsletter Subs — ${monthName} ${year}</div>
-    </div>
   </div>
 
   <!-- HIGHLIGHTS & NEXT STEPS -->

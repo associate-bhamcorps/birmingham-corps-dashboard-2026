@@ -9,7 +9,7 @@
 
 | Service | What it does | Where to log in |
 |---------|-------------|-----------------|
-| **Monday.com** | Stores all live data | monday.com |
+| **Monday.com** | Stores all live data, and the Dashboard Control Panel board | monday.com |
 | **GitHub** (`associate-bhamcorps/birmingham-corps-dashboard-2026`) | Stores the code | github.com |
 | **Netlify** | Hosts the live website | app.netlify.com |
 | **Claude** | AI tool that can make code changes for you in plain English | claude.ai/code *(requires a subscription — set up under the org)* |
@@ -28,9 +28,56 @@ The dashboard reads **live data directly from Monday.com**. To update what appea
 | Participant counts, statuses, programs | **Participants Professional Directory** |
 | Partner organizations | **Partners CRM** |
 | Funders, grant amounts, AmeriCorps funds | **Funders CRM** |
-| Newsletter/marketing stats | **Marketing Performance** |
 
 Changes appear on the dashboard within seconds of a page refresh. **No one needs to touch the code.**
+
+---
+
+## Changing the dashboard itself (NO code required)
+
+Wording, sections, and extra numbers are controlled from one Monday.com board:
+
+> **Dashboard Control Panel**
+> https://birminghamcorps-company.monday.com/boards/18427122467
+
+Edit a row there, wait about a minute, then refresh the dashboard. That's the whole process.
+Every row has a **What This Row Does** column explaining it in plain English.
+
+The board has four groups, and the group a row sits in is what decides what it does:
+
+### 1. CHANGE WORDING — rename anything on the dashboard
+Find the row whose name matches the words currently on the dashboard (for example
+`Featured Partners`). Type what you want instead in the **New Wording** column.
+
+- Leave **New Wording** blank to keep the current wording.
+- You don't have to match emoji, capitalization, or punctuation exactly.
+- Emoji on the dashboard are kept automatically — renaming `Featured Partners` to
+  `Partner Spotlight` keeps the ✨.
+
+### 2. SHOW OR HIDE — remove a tab or section
+Set a row to **Hide** and that tab or section disappears from the dashboard. Set it back to
+**Show** to bring it back. Nothing is deleted — hidden things are just not displayed.
+
+### 3. ANNOUNCEMENT BANNER — put a message at the top
+Type your message in **Banner Message** and set **Show or Hide** to **Show**. A yellow bar
+appears across the top of the dashboard for everyone. Set it back to **Hide** to take it down.
+
+### 4. EXTRA NUMBER CARDS — add your own big number
+Click **+ Add item**, type the words that go under the number as the row name, then fill in
+**Number**, pick **Which Tab**, and set **Show or Hide** to **Show**. The card appears at the
+top of that tab. (Duplicate the EXAMPLE row if you'd rather start from a copy.)
+
+> These are numbers you type in by hand — they do not update themselves. For numbers that
+> should update automatically from your data, ask a developer to add them properly.
+
+### If something looks wrong
+Undo your change in the Control Panel board and refresh the dashboard. **Nothing you do on
+this board can break the dashboard** — if the board can't be read for any reason, the
+dashboard just displays its normal wording.
+
+### What this board can't do
+Adding new tabs, new charts, new tables, or pulling in a new Monday.com board still needs a
+code change — see "Making small text/label changes (with AI help)" below.
 
 ---
 
@@ -60,7 +107,10 @@ Changes appear on the dashboard within seconds of a page refresh. **No one needs
 
 ## Making small text/label changes (with AI help)
 
-If management wants to rename a label, change a goal number, or update wording:
+**Try the Dashboard Control Panel board first** (see above) — renaming labels, hiding
+sections, and adding number cards no longer need any of the steps below.
+
+For anything else — a new tab, a new chart, a new data source, a changed calculation:
 
 1. Open [claude.ai/code](https://claude.ai/code) (requires a Claude subscription)
 2. Open the project folder (`birmingham-corps-live` in Downloads)
