@@ -1,7 +1,52 @@
 # Birmingham Corps Dashboard — Maintenance Guide
 
-**Dashboard URL:** dashboard.birminghamcorps.org
-**Monthly Report URL:** dashboard.birminghamcorps.org/.netlify/functions/report
+**Dashboard URL:** ⚠️ **confirm this — see the handover checklist below.**
+`dashboard.birminghamcorps.org` is written throughout this guide but **does not currently
+resolve in DNS** (checked against Google's public resolver: NXDOMAIN). The live site is
+reachable at its Netlify address instead — find it in app.netlify.com → the Birmingham Corps
+site → the URL shown at the top — and write it in here.
+
+**Monthly Report URL:** `<dashboard URL>/.netlify/functions/report`
+
+---
+
+## ⚠️ HANDOVER CHECKLIST — do these before Wenica's last day
+
+Nothing below is optional. Items 1 and 2 will take the whole dashboard offline if missed.
+
+### 1. Replace the Monday.com API key (CRITICAL)
+`MONDAY_API_KEY` in Netlify is **Wenica's personal Monday.com API token**. When that Monday
+account is deactivated, the token dies and **the entire dashboard stops loading data** —
+every tab, the Monthly Report, and the Control Panel.
+
+Fix: have someone who is staying (or a shared admin/service account) generate their own
+Personal API Token and replace the value in Netlify → Site configuration → Environment
+variables → `MONDAY_API_KEY`, then trigger a redeploy. Steps are under "If the dashboard
+stops loading data" below. **Do this while Wenica is still available to verify it worked.**
+
+### 2. Record the real dashboard URL
+`dashboard.birminghamcorps.org` has no DNS record. `birminghamcorps.org` and
+`www.birminghamcorps.org` point at Vercel, which is a different host from the Netlify site
+this dashboard runs on. Either create the `dashboard` subdomain pointing at Netlify, or
+write the working `*.netlify.app` URL at the top of this guide so the team can find it.
+
+(Related: the `www.birminghamcorps.org → dashboard.birminghamcorps.org` redirect in
+`netlify.toml` currently points at a host that doesn't exist, and never fires anyway because
+`www` is served by Vercel. It is harmless but misleading — clean it up when the domain is sorted.)
+
+### 3. Add other owners to the Dashboard Control Panel board
+The board is currently owned by Wenica alone, with Wenica as the only subscriber. Add at
+least two people who are staying as owners, so it can't be orphaned.
+
+### 4. Confirm who can access GitHub and Netlify
+The repo is `associate-bhamcorps/birmingham-corps-dashboard-2026`. Confirm that account is an
+organization account and not Wenica's personal one — if it's personal, transfer the repo to
+the Birmingham Corps org. Same for the Netlify site: make sure more than one person can log in.
+
+### 5. Claude subscription
+Claude Code is on Wenica's personal account. The org needs its own subscription for
+AI-assisted code changes. **This one is optional** — everything in the "Changing the
+dashboard itself" section below works without Claude.
 
 ---
 
@@ -14,8 +59,8 @@
 | **Netlify** | Hosts the live website | app.netlify.com |
 | **Claude** | AI tool that can make code changes for you in plain English | claude.ai/code *(requires a subscription — set up under the org)* |
 
-> All accounts except Claude are already under Birmingham Corps org accounts.
-> Claude Code is currently under Wenica's personal account — the organization should set up its own Claude subscription if they want AI-assisted maintenance.
+> Do not assume these are all org-owned — see handover items 1 and 4 above. The Monday.com
+> API token wired into the dashboard is a personal one, and it must be replaced.
 
 ---
 
@@ -39,11 +84,15 @@ Wording, sections, and extra numbers are controlled from one Monday.com board:
 
 > **Dashboard Control Panel**
 > https://birminghamcorps-company.monday.com/boards/18427122467
+>
+> Edits here reach the dashboard through the Monday.com API, using the `MONDAY_API_KEY` in
+> Netlify. If that key stops working, this board stops affecting the dashboard — and so does
+> everything else. See handover item 1.
 
 Edit a row there, wait about a minute, then refresh the dashboard. That's the whole process.
 Every row has a **What This Row Does** column explaining it in plain English.
 
-The board has four groups, and the group a row sits in is what decides what it does:
+The board has five groups, and the group a row sits in is what decides what it does:
 
 ### 1. CHANGE WORDING — rename anything on the dashboard
 Find the row whose name matches the words currently on the dashboard (for example
