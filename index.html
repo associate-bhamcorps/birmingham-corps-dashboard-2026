@@ -390,6 +390,28 @@
         // these through as-is — keep in sync if the board's Status column changes.
         const PARTICIPANT_STATUSES = ['In Program', 'Active Alumni', 'Inactive Alumni', 'Withdrawn/Noncompleter', 'DNC'];
 
+        // The rest of the official label sets on the Participants Directory board.
+        // The breakdown cards list these in this order and always show them, even at zero,
+        // so the dashboard reflects the full taxonomy rather than only what's been used.
+        const PARTICIPANT_CONTACT_TYPES = ['Alumni', 'Current Participant', 'Withdrawn/Noncompleter'];
+
+        const PARTICIPANT_CATEGORIES = ['AmeriCorps', 'Career Navigator', 'Cohort-Based', 'Talent Bridge', 'Workforce Residency', 'Career Coaching'];
+
+        const PARTICIPANT_PROGRAM_YEARS = [
+            'AmeriCorps 2022-2023/Career Navigator Cycle 1',
+            'Career Navigator Cycle 2',
+            'Career Navigator Cycle 3',
+            'Career Navigator Cycle 4',
+            'Health Pathways Cohort 1/Career Navigator Cycle 5',
+            'Health Pathways Cohort 2/Career Navigator Cycle 6',
+            'Career Navigator Cycle 7 (HICA CMA)',
+            'Career Navigator Cycle 8 (MCAC)',
+            'AmeriCorps 2025-2026/Career Navigator Cycle 9',
+            'Career Navigator Cycle 10 (HICA Customer Service)',
+            'Career Navigator Cycle 11 (Bhm Promise)',
+            'Career Navigator Cycle 12 (BBBS)'
+        ];
+
         function getStatusLabel(raw) {
             if (!raw || !raw.trim()) return 'Not Set';
             const r = raw.trim().toLowerCase();
@@ -644,13 +666,19 @@
             return counts;
         }
 
-        // Biggest first, but always keep the "no value yet" bucket at the bottom.
-        function sortCountsDesc(counts, lastLabel) {
-            return Object.fromEntries(Object.entries(counts).sort((a, b) => {
-                if (a[0] === lastLabel) return 1;
-                if (b[0] === lastLabel) return -1;
-                return b[1] - a[1];
-            }));
+        // Orders a breakdown card by the board's official label list: every official label
+        // appears in that order even when its count is zero, then any other value actually
+        // found in the data (biggest first, so nothing is ever hidden), then the empty
+        // bucket last.
+        function orderByCanonical(counts, canonical, lastLabel) {
+            const ordered = {};
+            canonical.forEach(label => { ordered[label] = counts[label] || 0; });
+            Object.entries(counts)
+                .filter(([k]) => canonical.indexOf(k) === -1 && k !== lastLabel)
+                .sort((a, b) => b[1] - a[1])
+                .forEach(([k, v]) => { ordered[k] = v; });
+            if (counts[lastLabel]) ordered[lastLabel] = counts[lastLabel];
+            return ordered;
         }
 
         function renderParticipantBreakdown() {
@@ -664,29 +692,26 @@
                 programCounts[pr] = (programCounts[pr] || 0) + 1;
             });
 
-            // Sort status in a meaningful order: currently enrolled → alumni → did not finish
-            const statusOrder = PARTICIPANT_STATUSES.concat(['Not Set']);
-            const sortedStatus = Object.fromEntries(
-                Object.entries(statusCounts).sort(([a], [b]) => {
-                    const ai = statusOrder.indexOf(a), bi = statusOrder.indexOf(b);
-                    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-                })
-            );
+            const sortedStatus = orderByCanonical(statusCounts, PARTICIPANT_STATUSES, 'Not Set');
 
             const makeCard = (title, counts) => `
                 <div class="breakdown-card"><h4>${escapeHtml(title)}</h4>
                 <ul class="breakdown-list">${Object.entries(counts).map(([k,v]) =>
                     `<li class="breakdown-item"><span>${escapeHtml(k)}</span><span>${v}</span></li>`).join('')}</ul></div>`;
-            document.getElementById('statusBreakdown').innerHTML = makeCard('By Status', sortedStatus);
-            document.getElementById('programBreakdown').innerHTML = makeCard('By Program / Category', sortCountsDesc(programCounts, 'Unassigned'));
+            const categoryCounts    = orderByCanonical(programCounts, PARTICIPANT_CATEGORIES, 'Unassigned');
+            const contactTypeCounts = orderByCanonical(countMultiSelect(data, 'dropdown_mm28v4zz', 'Not Set'), PARTICIPANT_CONTACT_TYPES, 'Not Set');
+            const programYearCounts = orderByCanonical(countMultiSelect(data, 'dropdown_mm45jh1w', 'Not Set'), PARTICIPANT_PROGRAM_YEARS, 'Not Set');
 
-            const contactTypeCounts = sortCountsDesc(countMultiSelect(data, 'dropdown_mm28v4zz', 'Not Set'), 'Not Set');
-            const programYearCounts = sortCountsDesc(countMultiSelect(data, 'dropdown_mm45jh1w', 'Not Set'), 'Not Set');
+            document.getElementById('statusBreakdown').innerHTML = makeCard('By Status', sortedStatus);
+            document.getElementById('programBreakdown').innerHTML = makeCard('By Program / Category', categoryCounts);
             document.getElementById('contactTypeBreakdown').innerHTML = makeCard('By Contact Type', contactTypeCounts);
             document.getElementById('programYearBreakdown').innerHTML = makeCard('By Program Year / Cohort', programYearCounts);
 
             const ctx = document.getElementById('participantStatusChart');
-            const statusLabels = Object.keys(sortedStatus);
+            // The card lists every official status; the chart shows only the ones with
+            // records, so the legend isn't padded with empty slices.
+            const chartStatus = Object.fromEntries(Object.entries(sortedStatus).filter(([, v]) => v > 0));
+            const statusLabels = Object.keys(chartStatus);
             const colorMap = {
                 'In Program': '#27ae60',
                 'Active Alumni': '#3498db',
@@ -699,7 +724,7 @@
             if (chartInstances.participantStatus) chartInstances.participantStatus.destroy();
             chartInstances.participantStatus = new Chart(ctx, {
                 type: 'doughnut',
-                data: { labels: statusLabels, datasets: [{ data: Object.values(sortedStatus), backgroundColor: chartColors }] },
+                data: { labels: statusLabels, datasets: [{ data: Object.values(chartStatus), backgroundColor: chartColors }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
             });
         }

@@ -56,6 +56,17 @@ they're Active Alumni or not. Use the `isInProgram()` helper rather than compari
 comma-joined text (`"Current Participant, Alumni"`), so they are counted with
 `countMultiSelect()`, which splits on commas and counts each label separately.
 
+**Official label sets.** `PARTICIPANT_STATUSES`, `PARTICIPANT_CONTACT_TYPES`,
+`PARTICIPANT_CATEGORIES`, and `PARTICIPANT_PROGRAM_YEARS` in `index.html` are the source of
+truth for how the four Participants breakdown cards are ordered. `orderByCanonical()` renders
+every label in these lists **even at zero**, so the cards show the full taxonomy rather than
+only what staff have used so far. Any value found in the data but missing from the list is
+appended after it (largest first) so no record is ever hidden — that tail is how you spot
+records still sitting on a retired or duplicate Monday label. The empty bucket sorts last.
+
+Update these lists when the board's labels change. The doughnut chart filters out zero-count
+statuses so the legend isn't padded with empty slices; the card still lists them.
+
 ### Partners board (18426299137)
 - `dropdown_mm651r0a` — Partner Type
 - `color_mm65tnts` — Relationship Stage
