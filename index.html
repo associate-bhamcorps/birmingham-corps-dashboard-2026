@@ -182,10 +182,12 @@
             </div>
             <div class="section">
                 <div class="section-title">Participant Status Breakdown</div>
-                <p style="font-size:12px;color:#7f8c8d;margin-bottom:16px;"><strong>Alumni</strong> = completed the program. <strong>Did Not Complete Program</strong> = withdrawn or no longer in contact. <strong>Not Set</strong> = status has not yet been assigned.</p>
+                <p style="font-size:12px;color:#7f8c8d;margin-bottom:16px;"><strong>In Program</strong> = currently enrolled. <strong>Active Alumni</strong> / <strong>Inactive Alumni</strong> = completed the program, still engaged or not. <strong>Withdrawn/Noncompleter</strong> = left before finishing. <strong>DNC</strong> = did not complete. <strong>Not Set</strong> = no status assigned yet.</p>
                 <div class="breakdown-grid">
                     <div id="statusBreakdown"></div>
                     <div id="programBreakdown"></div>
+                    <div id="contactTypeBreakdown"></div>
+                    <div id="programYearBreakdown"></div>
                 </div>
                 <div class="chart-container"><canvas id="participantStatusChart"></canvas></div>
             </div>
@@ -384,14 +386,29 @@
         let allData = { participants: [], partners: [], funders: [] };
         let chartInstances = {};
 
-        // Map raw Monday.com status values to clean display categories
+        // The Status labels on the Participants Directory board. The dashboard shows
+        // these through as-is — keep in sync if the board's Status column changes.
+        const PARTICIPANT_STATUSES = ['In Program', 'Active Alumni', 'Inactive Alumni', 'Withdrawn/Noncompleter', 'DNC'];
+
         function getStatusLabel(raw) {
             if (!raw || !raw.trim()) return 'Not Set';
             const r = raw.trim().toLowerCase();
-            if (r.includes('alumni') || r.includes('completed')) return 'Alumni';
-            if (r.includes('active') || r.includes('enrolled')) return 'Active';
-            if (r.includes('withdrawn') || r.includes('no contact') || r.includes('inactive')) return 'Did Not Complete Program';
+            // Exact matches first. "Inactive Alumni" contains the word "active", so the
+            // keyword fallbacks below must never run before an exact label match.
+            const exact = PARTICIPANT_STATUSES.find(s => s.toLowerCase() === r);
+            if (exact) return exact;
+            // Fallbacks for older records saved before these labels existed
+            if (r.includes('withdraw')) return 'Withdrawn/Noncompleter';
+            if (r === 'dnc' || r.includes('did not complete') || r.includes('noncompleter') || r.includes('non-completer')) return 'DNC';
+            if (r.includes('inactive') || r.includes('alumni') || r.includes('completed')) return 'Inactive Alumni';
+            if (r.includes('active') || r.includes('enrolled') || r.includes('in program')) return 'In Program';
             return raw; // keep any other values as-is
+        }
+
+        // "Currently in the program" — the basis for every active-participant count.
+        // Alumni are deliberately excluded, active or not.
+        function isInProgram(p) {
+            return getStatusLabel(p.color_mm28tqgd) === 'In Program';
         }
 
         async function fetchBoard(board) {
@@ -471,10 +488,10 @@
         function renderParticipantStats() {
             const data = allData.participants;
             const total = data.length;
-            const active = data.filter(p => getStatusLabel(p.color_mm28tqgd) === 'Active').length;
+            const active = data.filter(p => isInProgram(p)).length;
             const activeCorpsMembers = data.filter(p =>
                 (p.color_mm2ybdsg || '').toLowerCase().includes('americorps') &&
-                getStatusLabel(p.color_mm28tqgd) === 'Active'
+                isInProgram(p)
             ).length;
             document.getElementById('participantsStatsContainer').innerHTML = `
                 <div class="stat-card info"><div class="stat-value">${total}</div><div class="stat-label">Total Program Participants Of All Time</div></div>
@@ -613,6 +630,29 @@
             setTimeout(() => { if (window._bhamMap) window._bhamMap.invalidateSize(); }, 100);
         }
 
+        // Dropdown columns can hold more than one label at once ("Current Participant,
+        // Alumni"), so count each label separately rather than as one combined string.
+        function countMultiSelect(data, columnId, blankLabel) {
+            const counts = {};
+            data.forEach(p => {
+                const raw = (p[columnId] || '').trim();
+                if (!raw) { counts[blankLabel] = (counts[blankLabel] || 0) + 1; return; }
+                raw.split(',').map(v => v.trim()).filter(Boolean).forEach(v => {
+                    counts[v] = (counts[v] || 0) + 1;
+                });
+            });
+            return counts;
+        }
+
+        // Biggest first, but always keep the "no value yet" bucket at the bottom.
+        function sortCountsDesc(counts, lastLabel) {
+            return Object.fromEntries(Object.entries(counts).sort((a, b) => {
+                if (a[0] === lastLabel) return 1;
+                if (b[0] === lastLabel) return -1;
+                return b[1] - a[1];
+            }));
+        }
+
         function renderParticipantBreakdown() {
             const data = allData.participants;
 
@@ -624,8 +664,8 @@
                 programCounts[pr] = (programCounts[pr] || 0) + 1;
             });
 
-            // Sort status in a meaningful order
-            const statusOrder = ['Active', 'Alumni', 'Did Not Complete Program', 'Not Set'];
+            // Sort status in a meaningful order: currently enrolled → alumni → did not finish
+            const statusOrder = PARTICIPANT_STATUSES.concat(['Not Set']);
             const sortedStatus = Object.fromEntries(
                 Object.entries(statusCounts).sort(([a], [b]) => {
                     const ai = statusOrder.indexOf(a), bi = statusOrder.indexOf(b);
@@ -634,18 +674,25 @@
             );
 
             const makeCard = (title, counts) => `
-                <div class="breakdown-card"><h4>${title}</h4>
+                <div class="breakdown-card"><h4>${escapeHtml(title)}</h4>
                 <ul class="breakdown-list">${Object.entries(counts).map(([k,v]) =>
-                    `<li class="breakdown-item"><span>${k}</span><span>${v}</span></li>`).join('')}</ul></div>`;
+                    `<li class="breakdown-item"><span>${escapeHtml(k)}</span><span>${v}</span></li>`).join('')}</ul></div>`;
             document.getElementById('statusBreakdown').innerHTML = makeCard('By Status', sortedStatus);
-            document.getElementById('programBreakdown').innerHTML = makeCard('By Program / Category', programCounts);
+            document.getElementById('programBreakdown').innerHTML = makeCard('By Program / Category', sortCountsDesc(programCounts, 'Unassigned'));
+
+            const contactTypeCounts = sortCountsDesc(countMultiSelect(data, 'dropdown_mm28v4zz', 'Not Set'), 'Not Set');
+            const programYearCounts = sortCountsDesc(countMultiSelect(data, 'dropdown_mm45jh1w', 'Not Set'), 'Not Set');
+            document.getElementById('contactTypeBreakdown').innerHTML = makeCard('By Contact Type', contactTypeCounts);
+            document.getElementById('programYearBreakdown').innerHTML = makeCard('By Program Year / Cohort', programYearCounts);
 
             const ctx = document.getElementById('participantStatusChart');
             const statusLabels = Object.keys(sortedStatus);
             const colorMap = {
-                'Active': '#27ae60',
-                'Alumni': '#3498db',
-                'Did Not Complete Program': '#e74c3c',
+                'In Program': '#27ae60',
+                'Active Alumni': '#3498db',
+                'Inactive Alumni': '#8e44ad',
+                'Withdrawn/Noncompleter': '#e67e22',
+                'DNC': '#e74c3c',
                 'Not Set': '#95a5a6'
             };
             const chartColors = statusLabels.map(l => colorMap[l] || '#bdc3c7');
@@ -887,7 +934,7 @@
         function renderStrategicGoals2028() {
             const p = allData.participants, pa = allData.partners, fu = allData.funders;
             const activeResidents = p.filter(x =>
-                getStatusLabel(x.color_mm28tqgd) === 'Active' &&
+                isInProgram(x) &&
                 !(x.color_mm2ybdsg || '').toLowerCase().includes('americorps')
             ).length;
             const fundsRaised = fu.filter(f => !isAmeriCorpsFunder(f))
@@ -1002,7 +1049,7 @@
         function renderCorpsMemberHighlights() {
             const members = allData.participants.filter(p =>
                 (p.color_mm2ybdsg || '').toLowerCase().includes('americorps') &&
-                getStatusLabel(p.color_mm28tqgd) === 'Active'
+                isInProgram(p)
             ).slice(0, 8);
             const el = document.getElementById('corpsMembersHighlight');
             if (!el) return;
@@ -1025,8 +1072,8 @@
                     <h4>👥 Participant Metrics</h4>
                     <ul class="breakdown-list">
                         <li class="breakdown-item"><span>Total Program Participants Of All Time</span><span>${p.length}</span></li>
-                        <li class="breakdown-item"><span>Active Participant Quarterly</span><span>${p.filter(x => getStatusLabel(x.color_mm28tqgd) === 'Active').length}</span></li>
-                        <li class="breakdown-item"><span>Total Active Corps Collective Members</span><span>${p.filter(x => (x.color_mm2ybdsg || '').toLowerCase().includes('americorps') && getStatusLabel(x.color_mm28tqgd) === 'Active').length}</span></li>
+                        <li class="breakdown-item"><span>Active Participant Quarterly</span><span>${p.filter(x => isInProgram(x)).length}</span></li>
+                        <li class="breakdown-item"><span>Total Active Corps Collective Members</span><span>${p.filter(x => (x.color_mm2ybdsg || '').toLowerCase().includes('americorps') && isInProgram(x)).length}</span></li>
                     </ul>
                 </div>
                 <div class="breakdown-card" style="border-color:var(--success)">

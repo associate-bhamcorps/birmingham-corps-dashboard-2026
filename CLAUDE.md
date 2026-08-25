@@ -37,9 +37,24 @@ control:      18427122467  // Dashboard Control Panel (settings, not data)
 ## Monday.com Column IDs by board
 
 ### Participants board (18407896987)
-- `color_mm28tqgd` — Status (Active / Alumni / Withdrawn / etc.)
-- `color_mm2ybdsg` — Program (AmeriCorps / Career Navigator / etc.)
+- `color_mm28tqgd` — Status: **In Program · Active Alumni · Inactive Alumni · Withdrawn/Noncompleter · DNC**
+- `color_mm2ybdsg` — Organization/Program Category: AmeriCorps · Career Navigator · Cohort-Based · Talent Bridge · Career Coaching
+- `dropdown_mm28v4zz` — Contact Type (multi-select): Alumni · Current Participant · Withdrawn/Noncompleter
+- `dropdown_mm45jh1w` — Program Year / Cohort (multi-select)
 - PII columns filtered out: `phone_mm28k3k7`, `email_mm28c8fj`
+
+**Status handling.** `getStatusLabel()` passes the board's labels through unchanged; it matches
+the exact label first and only then falls back to keywords. That order is load-bearing —
+`"Inactive Alumni"` contains the substring `"active"`, so a keyword-first check silently counts
+101 alumni as active participants. `PARTICIPANT_STATUSES` is duplicated in `index.html` and
+`report.js`; **update both together**, and mirror any change to the board's Status labels.
+
+"Active participant" everywhere means **`In Program` only** — alumni are excluded whether
+they're Active Alumni or not. Use the `isInProgram()` helper rather than comparing strings.
+
+`Contact Type` and `Program Year / Cohort` are multi-select dropdowns and arrive as
+comma-joined text (`"Current Participant, Alumni"`), so they are counted with
+`countMultiSelect()`, which splits on commas and counts each label separately.
 
 ### Partners board (18426299137)
 - `dropdown_mm651r0a` — Partner Type

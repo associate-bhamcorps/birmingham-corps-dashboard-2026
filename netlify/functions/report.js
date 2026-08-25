@@ -67,18 +67,29 @@ exports.handler = async (event) => {
   }
 
   // Participant metrics
+  // Mirrors getStatusLabel() in index.html — keep the two in sync.
+  const PARTICIPANT_STATUSES = ['In Program', 'Active Alumni', 'Inactive Alumni', 'Withdrawn/Noncompleter', 'DNC'];
+
   function getStatusLabel(raw) {
     if (!raw || !raw.trim()) return 'Not Set';
     const r = raw.trim().toLowerCase();
-    if (r.includes('alumni') || r.includes('completed')) return 'Alumni';
-    if (r.includes('active') || r.includes('enrolled')) return 'Active';
+    // Exact matches first — "Inactive Alumni" contains the word "active".
+    const exact = PARTICIPANT_STATUSES.find(s => s.toLowerCase() === r);
+    if (exact) return exact;
+    if (r.includes('withdraw')) return 'Withdrawn/Noncompleter';
+    if (r === 'dnc' || r.includes('did not complete') || r.includes('noncompleter') || r.includes('non-completer')) return 'DNC';
+    if (r.includes('inactive') || r.includes('alumni') || r.includes('completed')) return 'Inactive Alumni';
+    if (r.includes('active') || r.includes('enrolled') || r.includes('in program')) return 'In Program';
     return raw;
   }
+
+  // Alumni are excluded from "active" counts, active or not.
+  const isInProgram = p => getStatusLabel(p.color_mm28tqgd) === 'In Program';
+
   const totalParticipants = participants.length;
-  const activeParticipants = participants.filter(p => getStatusLabel(p.color_mm28tqgd) === 'Active').length;
+  const activeParticipants = participants.filter(isInProgram).length;
   const activeCorpsMembers = participants.filter(p =>
-    (p.color_mm2ybdsg || '').toLowerCase().includes('americorps') &&
-    getStatusLabel(p.color_mm28tqgd) === 'Active'
+    (p.color_mm2ybdsg || '').toLowerCase().includes('americorps') && isInProgram(p)
   ).length;
 
   const programCounts = {};
